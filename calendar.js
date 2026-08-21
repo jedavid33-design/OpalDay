@@ -1,5 +1,12 @@
 (function(){
   const DAY=86400000, COLORS=["#7f3659","#70549b","#458d91","#c36f7d","#557aa8","#ad793e","#925887","#4f826b"];
+  const SPORTS=[
+    {id:"astros",name:"Houston Astros",short:"MLB",color:"#d86b32",aliases:["astros","houston astros"]},
+    {id:"vgk",name:"Vegas Golden Knights",short:"NHL",color:"#b4975a",aliases:["vgk","golden knights","vegas golden knights"]},
+    {id:"pwhl-vegas",name:"PWHL Las Vegas",short:"PWHL",color:"#50775d",aliases:["pwhl las vegas","pwhl vegas"]},
+    {id:"boston-fleet",name:"Boston Fleet",short:"PWHL",color:"#31746b",aliases:["boston fleet"]},
+    {id:"wpbl",name:"WPBL",short:"All league games",color:"#9b4f78",aliases:["wpbl","women’s pro baseball","womens pro baseball"]}
+  ];
   function ensureCalendarData(){
     state.planner.calendars=state.planner.calendars||[
       {id:"mine",name:"Mine",color:"#7f3659",visible:true},
@@ -10,6 +17,15 @@
     state.planner.events=state.planner.events||[];
     state.planner.feeds=state.planner.feeds||[];
     state.planner.deletedFeedUids=state.planner.deletedFeedUids||[];
+    state.planner.sports=state.planner.sports||{};
+    for(const sport of SPORTS){
+      let calendar=state.planner.calendars.find(x=>x.sportId===sport.id);
+      if(!calendar)calendar=state.planner.calendars.find(x=>sport.aliases.some(a=>String(x.name||"").toLowerCase().includes(a)));
+      if(!calendar){calendar={id:"sport-"+sport.id,name:sport.name,color:sport.color,visible:true};state.planner.calendars.push(calendar)}
+      calendar.sportId=sport.id;
+      if(state.planner.sports[sport.id]===undefined)state.planner.sports[sport.id]={enabled:true,lastRefresh:null,error:false};
+      else if(typeof state.planner.sports[sport.id]==="boolean")state.planner.sports[sport.id]={enabled:state.planner.sports[sport.id],lastRefresh:null,error:false};
+    }
   }
   ensureCalendarData();
   state.calView=localStorage.getItem("opalday-cal-view")||"timeline";
@@ -74,17 +90,19 @@
     $$("[data-overlay]").forEach(b=>b.classList.toggle("selected",!!state.calOverlays[b.dataset.overlay]));
     $("#calRange").textContent=range();
     $("#calendarCanvas").innerHTML=state.calView==="month"?month():state.calView==="week"?week():day();
-    $("#calendarList").innerHTML=state.planner.calendars.map(x=>'<article class="calendar-row"><button class="cal-visible '+(x.visible===false?"off":"")+'" data-cal-visible="'+x.id+'" style="--event:'+x.color+'">'+(x.visible===false?"":"✓")+'</button><button class="cal-name" data-cal-edit="'+x.id+'"><i style="--event:'+x.color+'"></i><span><strong>'+escapeHtml(x.name)+'</strong><small>'+state.planner.events.filter(e=>e.calendarId===x.id).length+' events'+(x.feedUrl?" · linked":"")+'</small></span></button></article>').join("");
+    $("#calendarList").innerHTML=state.planner.calendars.map(x=>'<article class="calendar-row"><button class="cal-visible '+(x.visible===false?"off":"")+'" data-cal-visible="'+x.id+'" style="--event:'+x.color+'">'+(x.visible===false?"":"✓")+'</button><button class="cal-name" data-cal-edit="'+x.id+'"><i style="--event:'+x.color+'"></i><span><strong>'+escapeHtml(x.name)+'</strong><small>'+state.planner.events.filter(e=>e.calendarId===x.id).length+' events'+(x.sportId?" · built-in sport":"")+'</small></span></button></article>').join("");
+    $("#sportsCalendarList").innerHTML=SPORTS.map(s=>{const setting=state.planner.sports[s.id],calendar=sportCalendar(s.id);return '<button class="sports-toggle '+(setting.enabled?"enabled":"")+'" data-sport="'+s.id+'" style="--event:'+calendar.color+'"><i></i><span><strong>'+escapeHtml(calendar.name)+'</strong><small>'+s.short+(setting.lastRefresh?" · updated "+new Date(setting.lastRefresh).toLocaleDateString([],{month:"short",day:"numeric"}):"")+'</small></span><b>'+(setting.enabled?"On":"Off")+'</b></button>'}).join("");
     $("#icalCalendar").innerHTML=options();$("#eventCalendar").innerHTML=options();
     $$("[data-event]").forEach(b=>b.onclick=()=>openEvent(b.dataset.event));
     $$("[data-system]").forEach(b=>b.onclick=()=>showItem(b.dataset.system));
     $$("[data-cal-day]").forEach(b=>b.onclick=()=>{state.calCursor=new Date(b.dataset.calDay+"T12:00");state.calView="day";render()});
     $$("[data-cal-visible]").forEach(b=>b.onclick=()=>{const x=c(b.dataset.calVisible);x.visible=x.visible===false;calendarChanged()});
     $$("[data-cal-edit]").forEach(b=>b.onclick=()=>openCalendar(b.dataset.calEdit));
+    $$("[data-sport]").forEach(b=>b.onclick=()=>toggleSport(b.dataset.sport));
   }
   function range(){if(state.calView==="month")return state.calCursor.toLocaleDateString([],{month:"long",year:"numeric"});if(state.calView==="week"){const s=ws(state.calCursor),e=new Date(s.getTime()+6*DAY);return s.toLocaleDateString([],{month:"short",day:"numeric"})+"–"+e.toLocaleDateString([],{month:"short",day:"numeric"})}return state.calCursor.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}
   function chip(e){const color=entryColor(e),attr=e.source==="builtin"?"":e._system?' data-system="'+e.id+'"':' data-event="'+e.id+'"',onDate=e._system?new Date((e._date||dk(state.calCursor))+"T12:00"):state.calCursor,done=e._system&&itemComplete(e,onDate),label=e._system?(e.kind==="medication"?(done?"Taken":medState(e,onDate)==="overdue"?"OVERDUE · Hard deadline":"Hard medication deadline"):cadenceLabel(e)):escapeHtml(c(e.calendarId).name);return '<button class="event-chip kind-'+(e.kind||"event")+(done?" is-complete":"")+'"'+attr+' style="--event:'+color+'"><strong>'+escapeHtml(e.title)+'</strong><small>'+fmt(e.time)+' · '+label+'</small></button>'}
-  function day(){const ev=eventsOn(state.calCursor);if(state.calView==="timeline")return ev.length?'<div class="calendar-timeline">'+ev.map(e=>'<div><time>'+fmt(e.time)+'</time><span style="--event:'+entryColor(e)+'"></span>'+chip(e)+'</div>').join("")+'</div>':'<div class="small-empty">No items on this date.</div>';return '<div class="day-grid">'+Array.from({length:18},(_,n)=>n+6).map(h=>{const here=ev.filter(e=>+(e.time||"99").slice(0,2)===h);return '<div class="hour-row"><time>'+new Date(2000,0,1,h).toLocaleTimeString([],{hour:"numeric"})+'</time><div>'+here.map(chip).join("")+'</div></div>'}).join("")+'<div class="all-day-row">'+ev.filter(e=>!e.time).map(chip).join("")+'</div></div>'}
+  function day(){const ev=eventsOn(state.calCursor),systems=ev.filter(e=>e._system),scheduled=ev.filter(e=>!e._system),top=systems.length?'<div class="day-system-band"><small>HABITS & REMINDERS</small>'+systems.map(chip).join("")+'</div>':"";if(state.calView==="timeline")return top+(scheduled.length?'<div class="calendar-timeline">'+scheduled.map(e=>'<div><time>'+fmt(e.time)+'</time><span style="--event:'+entryColor(e)+'"></span>'+chip(e)+'</div>').join("")+'</div>':systems.length?"":'<div class="small-empty">No items on this date.</div>');return top+'<div class="day-grid">'+Array.from({length:18},(_,n)=>n+6).map(h=>{const here=scheduled.filter(e=>+(e.time||"99").slice(0,2)===h);return '<div class="hour-row"><time>'+new Date(2000,0,1,h).toLocaleTimeString([],{hour:"numeric"})+'</time><div>'+here.map(chip).join("")+'</div></div>'}).join("")+'<div class="all-day-row">'+scheduled.filter(e=>!e.time).map(chip).join("")+'</div></div>'}
   function week(){const s=ws(state.calCursor);return flexibleBand()+'<div class="week-grid">'+Array.from({length:7},(_,n)=>{const d=new Date(s.getTime()+n*DAY),ev=eventsOn(d);return '<div class="week-day '+(dk(d)===dk(new Date())?"today-col":"")+'"><button data-cal-day="'+dk(d)+'"><small>'+d.toLocaleDateString([],{weekday:"short"})+'</small><strong>'+d.getDate()+'</strong></button><div>'+ev.slice(0,5).map(chip).join("")+(ev.length>5?'<small>+'+(ev.length-5)+' more</small>':'')+'</div></div>'}).join("")+'</div>'}
   function month(){const y=state.calCursor.getFullYear(),m=state.calCursor.getMonth(),f=new Date(y,m,1),s=new Date(f);s.setDate(1-((f.getDay()+6)%7));return monthlyBand()+'<div class="month-weekdays">'+["M","T","W","T","F","S","S"].map(x=>'<span>'+x+'</span>').join("")+'</div><div class="month-grid">'+Array.from({length:42},(_,n)=>{const d=new Date(s.getTime()+n*DAY),ev=eventsOn(d);return '<button class="'+(d.getMonth()!==m?"outside ":"")+(dk(d)===dk(new Date())?"today-cell":"")+'" data-cal-day="'+dk(d)+'"><strong>'+d.getDate()+'</strong><span>'+ev.slice(0,4).map(e=>'<i style="--event:'+entryColor(e)+';opacity:'+(e._system&&itemComplete(e,d)?".35":"1")+'"></i>').join("")+'</span></button>'}).join("")+'</div>'}
   function openEvent(id){
@@ -103,7 +121,29 @@
     }).filter(e=>e&&!state.planner.deletedFeedUids.includes(e.feedUid))
   }
   function merge(events,cid,feedId){for(const e of events){const n=state.planner.events.findIndex(x=>x.feedUid===e.feedUid&&x.calendarId===cid);if(n<0)state.planner.events.push(e);else state.planner.events[n]=e}calendarChanged()}
-  async function refresh(){const feeds=state.planner.feeds.filter(f=>f.url);if(!feeds.length)return toast("No linked calendars yet");$("#icalStatus").textContent="Refreshing…";for(const f of feeds){try{const r=await fetch(workerUrl()+"/calendar-feed?url="+encodeURIComponent(f.url));if(!r.ok)throw Error();merge(parseICS(await r.text(),f.calendarId,f.id),f.calendarId,f.id);f.lastRefresh=new Date().toISOString();f.error=false}catch{f.error=true}}$("#icalStatus").textContent="Refresh finished.";calendarChanged()}
+  function sportCalendar(id){return state.planner.calendars.find(x=>x.sportId===id)}
+  function mergeSport(id,rawEvents){
+    const calendar=sportCalendar(id),fresh=new Set();
+    const incoming=(rawEvents||[]).map(raw=>{
+      const start=new Date(raw.start);if(!raw.uid||Number.isNaN(start.getTime()))return null;
+      fresh.add(String(raw.uid));
+      const old=state.planner.events.find(e=>e.source==="sports"&&e.sportId===id&&e.sportUid===String(raw.uid));
+      if(old?.userEdited)return old;
+      return{id:old?.id||uid(),title:raw.title||"Game",date:dk(start),time:raw.allDay?null:String(start.getHours()).padStart(2,"0")+":"+String(start.getMinutes()).padStart(2,"0"),end:null,calendarId:calendar.id,source:"sports",sportId:id,sportUid:String(raw.uid),url:raw.url||null,status:raw.status||null,createdAt:old?.createdAt||new Date().toISOString()}
+    }).filter(Boolean);
+    state.planner.events=state.planner.events.filter(e=>e.source!=="sports"||e.sportId!==id||e.userEdited||fresh.has(e.sportUid));
+    for(const event of incoming){const n=state.planner.events.findIndex(e=>e.source==="sports"&&e.sportId===id&&e.sportUid===event.sportUid);if(n<0)state.planner.events.push(event);else state.planner.events[n]=event}
+  }
+  async function refreshSports(onlyId=null){
+    if(!workerUrl())return toast("Worker URL needed");
+    const ids=SPORTS.map(s=>s.id).filter(id=>(!onlyId||id===onlyId)&&state.planner.sports[id].enabled);
+    if(!ids.length)return toast("Turn on a sports calendar first");
+    $("#sportsStatus").textContent="Refreshing schedules…";$("#refreshSports").classList.add("sports-refreshing");
+    let updated=0,failed=0;
+    for(const id of ids){const setting=state.planner.sports[id];try{const response=await fetch(workerUrl()+"/sports?id="+encodeURIComponent(id));if(!response.ok)throw Error("Schedule unavailable");const payload=await response.json();if(!Array.isArray(payload.events))throw Error("Invalid schedule");mergeSport(id,payload.events);setting.lastRefresh=new Date().toISOString();setting.error=false;updated++}catch{setting.error=true;failed++}}
+    state.planner.updatedAt=new Date().toISOString();save();$("#sportsStatus").textContent=failed?updated+" updated · "+failed+" waiting for schedule source":"Sports schedules are up to date.";$("#refreshSports").classList.remove("sports-refreshing");render()
+  }
+  function toggleSport(id){const setting=state.planner.sports[id],calendar=sportCalendar(id);setting.enabled=!setting.enabled;if(setting.enabled)calendar.visible=true;else calendar.visible=false;calendarChanged();render();if(setting.enabled)refreshSports(id)}
   $$("[data-cal-view]").forEach(b=>b.onclick=()=>{state.calView=b.dataset.calView;localStorage.setItem("opalday-cal-view",state.calView);render()});
   $$("[data-overlay]").forEach(b=>b.onclick=()=>{state.calOverlays[b.dataset.overlay]=!state.calOverlays[b.dataset.overlay];localStorage.setItem("opalday-cal-overlays",JSON.stringify(state.calOverlays));render()});
   $("#calPrev").onclick=()=>move(-1);$("#calNext").onclick=()=>move(1);$("#calToday").onclick=()=>{state.calCursor=new Date();render()};
@@ -113,8 +153,7 @@
   $("#deleteEvent").onclick=()=>{const e=state.planner.events.find(x=>x.id===state.editEvent);if(!e)return;if(e.feedUid)state.planner.deletedFeedUids.push(e.feedUid);state.planner.events=state.planner.events.filter(x=>x.id!==e.id);state.editEvent=null;closeModals();calendarChanged();toast("Event deleted")};
   $("#saveCalendar").onclick=()=>{const name=$("#calendarName").value.trim();if(!name)return toast("Name the calendar");if(state.editCalendar){const x=c(state.editCalendar);x.name=name;x.color=$("#calendarColor").value}else state.planner.calendars.push({id:uid(),name,color:$("#calendarColor").value,visible:true});state.editCalendar=null;closeModals();calendarChanged()};
   $("#icalFile").onchange=async e=>{const file=e.target.files[0];if(!file)return;const cid=$("#icalCalendar").value;merge(parseICS(await file.text(),cid,null),cid,null);toast("iCal imported")};
-  $("#linkIcal").onclick=async()=>{const url=$("#icalUrl").value.trim(),cid=$("#icalCalendar").value;if(!url)return toast("Paste an iCal link");const f={id:uid(),url,calendarId:cid,lastRefresh:null};state.planner.feeds.push(f);c(cid).feedUrl=url;calendarChanged();await refresh()};
-  $("#refreshIcal").onclick=refresh;
-  setTimeout(()=>{if(state.planner.feeds.some(f=>!f.lastRefresh||Date.now()-new Date(f.lastRefresh)>DAY)&&workerUrl())refresh()},2200);
+  $("#refreshSports").onclick=()=>refreshSports();
+  setTimeout(()=>{if(SPORTS.some(s=>{const x=state.planner.sports[s.id];return x.enabled&&(!x.lastRefresh||Date.now()-new Date(x.lastRefresh)>DAY)})&&workerUrl())refreshSports()},2200);
   renderCalendar();
 })();
