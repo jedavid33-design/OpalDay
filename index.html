@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f7f6fa">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="OpalDay">
+  <meta name="description" content="Your day, gently organized.">
+  <title>OpalDay</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./app-icon.png">
+  <link rel="icon" href="./app-icon.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div><p class="eyebrow" id="todayDate"></p><h1>Today</h1></div>
+      <button class="sync-pill" id="syncButton"><span class="sync-dot"></span><span id="syncText">Set up sync</span></button>
+    </header>
+
+    <section class="progress-card">
+      <div class="progress-copy"><span class="progress-kicker">Gentle progress</span><strong id="progressTitle">Your day is wide open</strong><span id="progressNote">Add your first habit, reset, medication, or event.</span></div>
+      <div class="progress-ring" id="progressRing"><span id="progressNumber">0%</span></div>
+    </section>
+
+    <section class="timeline-section">
+      <div class="section-heading"><div><p class="eyebrow">Your timeline</p><h2>What’s happening</h2></div><button class="add-button" id="addButton">＋ Add</button></div>
+      <div id="items"></div>
+    </section>
+
+    <nav class="bottom-nav">
+      <button class="selected"><span>◉</span>Today</button>
+      <button data-coming="Habits"><span>✓</span>Habits</button>
+      <button data-coming="Progress"><span>⌁</span>Progress</button>
+      <button id="settingsButton"><span>⚙</span>Settings</button>
+    </nav>
+  </main>
+
+  <div class="modal-backdrop hidden" id="addModal">
+    <section class="modal-sheet">
+      <div class="sheet-handle"></div><p class="eyebrow">Add anything</p><h2>What do you want to track?</h2>
+      <p class="modal-note">Write naturally. Add subtasks after a colon, separated by commas.</p>
+      <form id="addForm">
+        <textarea id="naturalEntry" placeholder="Organize my closet once a month: hanging clothes, shoes, top shelf"></textarea>
+        <div class="preview hidden" id="entryPreview"></div>
+        <div class="modal-actions"><button type="button" class="secondary" data-close>Cancel</button><button class="primary" id="addSubmit">Add item</button></div>
+      </form>
+    </section>
+  </div>
+
+  <div class="modal-backdrop hidden" id="syncModal">
+    <section class="modal-sheet">
+      <div class="sheet-handle"></div><p class="eyebrow">Private device sync</p><h2 id="syncHeading">Keep every device together</h2>
+      <div id="syncBody"></div><button class="text-button" data-close>Done</button>
+    </section>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
