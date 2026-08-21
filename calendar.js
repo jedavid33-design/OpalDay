@@ -1,14 +1,17 @@
 (function(){
   const DAY=86400000, COLORS=["#7f3659","#70549b","#458d91","#c36f7d","#557aa8","#ad793e","#925887","#4f826b"];
-  state.planner.calendars=state.planner.calendars||[
-    {id:"mine",name:"Mine",color:"#7f3659",visible:true},
-    {id:"moms",name:"Mom’s",color:"#70549b",visible:true},
-    {id:"birthdays",name:"Birthdays",color:"#c36f7d",visible:true},
-    {id:"holidays",name:"Holidays",color:"#458d91",visible:true}
-  ];
-  state.planner.events=state.planner.events||[];
-  state.planner.feeds=state.planner.feeds||[];
-  state.planner.deletedFeedUids=state.planner.deletedFeedUids||[];
+  function ensureCalendarData(){
+    state.planner.calendars=state.planner.calendars||[
+      {id:"mine",name:"Mine",color:"#7f3659",visible:true},
+      {id:"moms",name:"Mom’s",color:"#70549b",visible:true},
+      {id:"birthdays",name:"Birthdays",color:"#c36f7d",visible:true},
+      {id:"holidays",name:"Holidays",color:"#458d91",visible:true}
+    ];
+    state.planner.events=state.planner.events||[];
+    state.planner.feeds=state.planner.feeds||[];
+    state.planner.deletedFeedUids=state.planner.deletedFeedUids||[];
+  }
+  ensureCalendarData();
   state.calView=localStorage.getItem("opalday-cal-view")||"timeline";
   state.calCursor=new Date();
   state.editEvent=null; state.editCalendar=null;
@@ -21,6 +24,7 @@
   const baseRender=render;
   render=function(){baseRender();renderCalendar()};
   function renderCalendar(){
+    ensureCalendarData();
     if(!$("#calendarCanvas"))return;
     $$("[data-cal-view]").forEach(b=>b.classList.toggle("selected",b.dataset.calView===state.calView));
     $("#calRange").textContent=range();
