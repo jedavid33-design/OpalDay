@@ -55,6 +55,11 @@
     return list.map((x,n)=>({id:"us-holiday-"+year+"-"+n,title:x[0],date:dk(x[1]),time:null,end:null,calendarId:"holidays",source:"builtin"}))
   }
   function options(){return state.planner.calendars.map(x=>'<option value="'+x.id+'">'+escapeHtml(x.name)+'</option>').join("")}
+  function calendarSummary(x){
+    const saved=state.planner.events.filter(e=>e.calendarId===x.id).length;
+    if(x.id==="holidays")return (saved+usHolidays(new Date().getFullYear()).length)+" holidays · built in";
+    return saved+" events"+(x.sportId?" · built-in sport":"")
+  }
   function overlayKey(i){return i.kind==="medication"?"medications":i.kind==="reset"?"resets":"habits"}
   function systemOn(i,d){
     if(!state.calOverlays[overlayKey(i)]||(!state.calOverlays.completed&&itemComplete(i,d)))return false;
@@ -90,7 +95,7 @@
     $$("[data-overlay]").forEach(b=>b.classList.toggle("selected",!!state.calOverlays[b.dataset.overlay]));
     $("#calRange").textContent=range();
     $("#calendarCanvas").innerHTML=state.calView==="month"?month():state.calView==="week"?week():day();
-    $("#calendarList").innerHTML=state.planner.calendars.map(x=>'<article class="calendar-row"><button class="cal-visible '+(x.visible===false?"off":"")+'" data-cal-visible="'+x.id+'" style="--event:'+x.color+'">'+(x.visible===false?"":"✓")+'</button><button class="cal-name" data-cal-edit="'+x.id+'"><i style="--event:'+x.color+'"></i><span><strong>'+escapeHtml(x.name)+'</strong><small>'+state.planner.events.filter(e=>e.calendarId===x.id).length+' events'+(x.sportId?" · built-in sport":"")+'</small></span></button></article>').join("");
+    $("#calendarList").innerHTML=state.planner.calendars.map(x=>'<article class="calendar-row"><button class="cal-visible '+(x.visible===false?"off":"")+'" data-cal-visible="'+x.id+'" style="--event:'+x.color+'">'+(x.visible===false?"":"✓")+'</button><button class="cal-name" data-cal-edit="'+x.id+'"><i style="--event:'+x.color+'"></i><span><strong>'+escapeHtml(x.name)+'</strong><small>'+calendarSummary(x)+'</small></span></button></article>').join("");
     $("#sportsCalendarList").innerHTML=SPORTS.map(s=>{const setting=state.planner.sports[s.id],calendar=sportCalendar(s.id);return '<button class="sports-toggle '+(setting.enabled?"enabled":"")+'" data-sport="'+s.id+'" style="--event:'+calendar.color+'"><i></i><span><strong>'+escapeHtml(calendar.name)+'</strong><small>'+s.short+(setting.lastRefresh?" · updated "+new Date(setting.lastRefresh).toLocaleDateString([],{month:"short",day:"numeric"}):"")+'</small></span><b>'+(setting.enabled?"On":"Off")+'</b></button>'}).join("");
     $("#icalCalendar").innerHTML=options();$("#eventCalendar").innerHTML=options();
     $$("[data-event]").forEach(b=>b.onclick=()=>openEvent(b.dataset.event));
@@ -102,7 +107,14 @@
   }
   function range(){if(state.calView==="month")return state.calCursor.toLocaleDateString([],{month:"long",year:"numeric"});if(state.calView==="week"){const s=ws(state.calCursor),e=new Date(s.getTime()+6*DAY);return s.toLocaleDateString([],{month:"short",day:"numeric"})+"–"+e.toLocaleDateString([],{month:"short",day:"numeric"})}return state.calCursor.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}
   function chip(e){const color=entryColor(e),attr=e.source==="builtin"?"":e._system?' data-system="'+e.id+'"':' data-event="'+e.id+'"',onDate=e._system?new Date((e._date||dk(state.calCursor))+"T12:00"):state.calCursor,done=e._system&&itemComplete(e,onDate),label=e._system?(e.kind==="medication"?(done?"Taken":medState(e,onDate)==="overdue"?"OVERDUE · Hard deadline":"Hard medication deadline"):cadenceLabel(e)):escapeHtml(c(e.calendarId).name);return '<button class="event-chip kind-'+(e.kind||"event")+(done?" is-complete":"")+'"'+attr+' style="--event:'+color+'"><strong>'+escapeHtml(e.title)+'</strong><small>'+fmt(e.time)+' · '+label+'</small></button>'}
-  function day(){const ev=eventsOn(state.calCursor),systems=ev.filter(e=>e._system),scheduled=ev.filter(e=>!e._system),top=systems.length?'<div class="day-system-band"><small>HABITS & REMINDERS</small>'+systems.map(chip).join("")+'</div>':"";if(state.calView==="timeline")return top+(scheduled.length?'<div class="calendar-timeline">'+scheduled.map(e=>'<div><time>'+fmt(e.time)+'</time><span style="--event:'+entryColor(e)+'"></span>'+chip(e)+'</div>').join("")+'</div>':systems.length?"":'<div class="small-empty">No items on this date.</div>');return top+'<div class="day-grid">'+Array.from({length:18},(_,n)=>n+6).map(h=>{const here=scheduled.filter(e=>+(e.time||"99").slice(0,2)===h);return '<div class="hour-row"><time>'+new Date(2000,0,1,h).toLocaleTimeString([],{hour:"numeric"})+'</time><div>'+here.map(chip).join("")+'</div></div>'}).join("")+'<div class="all-day-row">'+scheduled.filter(e=>!e.time).map(chip).join("")+'</div></div>'}
+  function day(){
+    const ev=eventsOn(state.calCursor),systems=ev.filter(e=>e._system),scheduled=ev.filter(e=>!e._system),allDay=scheduled.filter(e=>!e.time),timed=scheduled.filter(e=>e.time);
+    const systemTop=systems.length?'<div class="day-system-band"><small>HABITS & REMINDERS</small>'+systems.map(chip).join("")+'</div>':"";
+    const allDayTop=allDay.length?'<div class="day-all-day-band"><small>ALL DAY</small>'+allDay.map(chip).join("")+'</div>':"";
+    const top=systemTop+allDayTop;
+    if(state.calView==="timeline")return top+(timed.length?'<div class="calendar-timeline">'+timed.map(e=>'<div><time>'+fmt(e.time)+'</time><span style="--event:'+entryColor(e)+'"></span>'+chip(e)+'</div>').join("")+'</div>':top?"":'<div class="small-empty">No items on this date.</div>');
+    return top+'<div class="day-grid">'+Array.from({length:18},(_,n)=>n+6).map(h=>{const here=timed.filter(e=>+e.time.slice(0,2)===h);return '<div class="hour-row"><time>'+new Date(2000,0,1,h).toLocaleTimeString([],{hour:"numeric"})+'</time><div>'+here.map(chip).join("")+'</div></div>'}).join("")+'</div>'
+  }
   function week(){const s=ws(state.calCursor);return flexibleBand()+'<div class="week-grid">'+Array.from({length:7},(_,n)=>{const d=new Date(s.getTime()+n*DAY),ev=eventsOn(d);return '<div class="week-day '+(dk(d)===dk(new Date())?"today-col":"")+'"><button data-cal-day="'+dk(d)+'"><small>'+d.toLocaleDateString([],{weekday:"short"})+'</small><strong>'+d.getDate()+'</strong></button><div>'+ev.slice(0,5).map(chip).join("")+(ev.length>5?'<small>+'+(ev.length-5)+' more</small>':'')+'</div></div>'}).join("")+'</div>'}
   function month(){const y=state.calCursor.getFullYear(),m=state.calCursor.getMonth(),f=new Date(y,m,1),s=new Date(f);s.setDate(1-((f.getDay()+6)%7));return monthlyBand()+'<div class="month-weekdays">'+["M","T","W","T","F","S","S"].map(x=>'<span>'+x+'</span>').join("")+'</div><div class="month-grid">'+Array.from({length:42},(_,n)=>{const d=new Date(s.getTime()+n*DAY),ev=eventsOn(d);return '<button class="'+(d.getMonth()!==m?"outside ":"")+(dk(d)===dk(new Date())?"today-cell":"")+'" data-cal-day="'+dk(d)+'"><strong>'+d.getDate()+'</strong><span>'+ev.slice(0,4).map(e=>'<i style="--event:'+entryColor(e)+';opacity:'+(e._system&&itemComplete(e,d)?".35":"1")+'"></i>').join("")+'</span></button>'}).join("")+'</div>'}
   function openEvent(id){
