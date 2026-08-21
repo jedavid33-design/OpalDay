@@ -72,16 +72,20 @@ Commit that change and wait for GitHub Pages to update.
 4. Open OpalDay on the second device.
 5. Tap **Set up sync**, enter the same code, and connect.
 
-## Current first-release features
+## Version 0.2 features
 
 - Blank slate; no hardwired habits
-- Natural entry for daily, weekly, monthly, and multi-week items
+- Natural entry that suggests a schedule without locking it in
+- Editable type, frequency, weekly target, preferred day, time, interval, and hard date before saving
 - Optional comma-separated subtasks after a colon
 - Bubble-style daily timeline
-- Completion progress
+- Flexible Monday–Sunday weekly goals and monthly resets
+- Working Habits and Progress screens
+- Per-period completion progress and weekly activity graph
+- System details and delete controls
 - Private sync code
 - Automatic sync when the app regains focus
 - Offline PWA shell
 - Opal app icon
 
-The Habits and Progress tabs are placeholders for the next release.
+Existing v0.1 data and sync codes remain compatible.

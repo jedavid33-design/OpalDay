@@ -1,170 +1,36 @@
-const STORAGE_KEY = "opalday-data-v1";
-const CODE_KEY = "opalday-sync-code";
-const state = {
-  planner: load(STORAGE_KEY, { items: [], updatedAt: "" }),
-  syncCode: localStorage.getItem(CODE_KEY) || "",
-  syncStatus: "Local only",
-  saveTimer: null
-};
-const $ = selector => document.querySelector(selector);
-const $$ = selector => [...document.querySelectorAll(selector)];
-const workerUrl = () => (window.OPALDAY_CONFIG?.workerUrl || "").replace(/\/$/, "");
-
-function load(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; } }
-function randomCode() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  return Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-}
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, char => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[char]));
-}
-function parseEntry(value) {
-  const [rawTitle, rawSubtasks = ""] = value.split(/:(.+)/);
-  let title = rawTitle.trim();
-  const lower = title.toLowerCase();
-  const kind = /med|dose|injection|vyvgart|nucala/.test(lower) ? "medication" : /clean|tidy|organize|reset|sheets|closet|desk|table|shelf/.test(lower) ? "reset" : "habit";
-  let cadence = /every day|daily|each day/.test(lower) ? "daily" : /month/.test(lower) ? "monthly" : "weekly";
-  let target = Number(lower.match(/(\d+)\s*(?:x|times?)\s*(?:a|per|each)?\s*week/)?.[1] || 1);
-  const intervalWeeks = Number(lower.match(/every\s+(\d+)\s+weeks?/)?.[1] || 0) || null;
-  if (intervalWeeks) cadence = "interval";
-  const days = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
-  const fixedDay = days.findIndex(day => lower.includes(day));
-  const time = lower.match(/(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);
-  let fixedTime = null;
-  if (time) {
-    let hour = Number(time[1]);
-    if (time[3] === "pm" && hour < 12) hour += 12;
-    if (time[3] === "am" && hour === 12) hour = 0;
-    fixedTime = String(hour).padStart(2,"0") + ":" + (time[2] || "00");
-  }
-  title = title
-    .replace(/\b(?:every day|daily|each day|once a week|every week|weekly|once a month|every month|monthly)\b/gi,"")
-    .replace(/\b\d+\s*(?:x|times?)\s*(?:a|per|each)?\s*week\b/gi,"")
-    .replace(/\bevery\s+\d+\s+weeks?\b/gi,"")
-    .replace(/\b(?:on\s+)?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)s?\b/gi,"")
-    .replace(/\b(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/gi,"")
-    .replace(/\s+/g," ").trim() || rawTitle.trim();
-  const subtasks = rawSubtasks.split(",").map(value => value.trim()).filter(Boolean).map(title => ({ id: crypto.randomUUID(), title, done: false }));
-  return { id: crypto.randomUUID(), title, kind, cadence, target, intervalWeeks, fixedDay: fixedDay >= 0 ? fixedDay : null, fixedTime, subtasks, completed: false, completions: [], rescueReminder: true, createdAt: new Date().toISOString() };
-}
-function cadenceLabel(item) {
-  if (item.cadence === "daily") return "Every day";
-  if (item.cadence === "monthly") return "Once this month";
-  if (item.cadence === "interval") return `Every ${item.intervalWeeks || 1} weeks`;
-  return item.target > 1 ? `${item.target} times this week` : "Once this week";
-}
-function save(push = true) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.planner));
-  render();
-  if (push && state.syncCode) {
-    clearTimeout(state.saveTimer);
-    state.saveTimer = setTimeout(syncPush, 650);
-  }
-}
-function render() {
-  $("#todayDate").textContent = new Intl.DateTimeFormat("en-US",{weekday:"long",month:"long",day:"numeric"}).format(new Date());
-  const complete = state.planner.items.filter(item => item.completed).length;
-  const total = state.planner.items.length;
-  const progress = total ? Math.round(complete / total * 100) : 0;
-  $("#progressTitle").textContent = total ? `${complete} of ${total} complete` : "Your day is wide open";
-  $("#progressNote").textContent = total ? "One thing at a time is plenty." : "Add your first habit, reset, medication, or event.";
-  $("#progressNumber").textContent = progress + "%";
-  $("#progressRing").style.setProperty("--progress", progress * 3.6 + "deg");
-  $("#syncText").textContent = state.syncCode ? state.syncStatus : "Set up sync";
-  $(".sync-dot").classList.toggle("active", Boolean(state.syncCode));
-  const items = [...state.planner.items].sort((a,b) => (a.fixedTime || "99:99").localeCompare(b.fixedTime || "99:99"));
-  $("#items").innerHTML = items.length ? `<div class="timeline">${items.map(itemHtml).join("")}</div>` : `
-    <button class="empty-state" id="emptyAdd"><span class="empty-orb">＋</span><strong>Build today naturally</strong>
-    <span>Try “PT three times a week” or “Organize closet monthly: clothes, shoes, donations.”</span></button>`;
-  $("#emptyAdd")?.addEventListener("click", () => openModal("#addModal"));
-  $$("[data-toggle-item]").forEach(button => button.addEventListener("click", () => toggleItem(button.dataset.toggleItem)));
-  $$("[data-subtask]").forEach(button => button.addEventListener("click", () => toggleSubtask(button.dataset.item, button.dataset.subtask)));
-}
-function itemHtml(item) {
-  const time = item.fixedTime ? new Date("2000-01-01T"+item.fixedTime).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}) : "Anytime";
-  return `<article class="timeline-item kind-${item.kind} ${item.completed ? "is-complete" : ""}">
-    <div class="time-column">${time}</div><div class="timeline-rail"><span></span></div>
-    <div class="item-bubble"><button class="check-button" data-toggle-item="${item.id}">${item.completed ? "✓" : ""}</button>
-    <div class="item-content"><div class="item-title-row"><strong>${escapeHtml(item.title)}</strong><span class="kind-label">${item.kind}</span></div>
-    <span class="cadence">${cadenceLabel(item)}</span>
-    ${item.subtasks.length ? `<div class="subtasks">${item.subtasks.map(sub => `<button class="${sub.done ? "done" : ""}" data-item="${item.id}" data-subtask="${sub.id}"><i>${sub.done ? "✓" : ""}</i>${escapeHtml(sub.title)}</button>`).join("")}</div>` : ""}
-    </div></div></article>`;
-}
-function toggleItem(id) {
-  const item = state.planner.items.find(item => item.id === id);
-  if (!item) return;
-  item.completed = !item.completed;
-  item.completions = item.completed ? [...item.completions,new Date().toISOString()] : item.completions.slice(0,-1);
-  state.planner.updatedAt = new Date().toISOString(); save();
-}
-function toggleSubtask(itemId, subtaskId) {
-  const subtask = state.planner.items.find(item => item.id === itemId)?.subtasks.find(sub => sub.id === subtaskId);
-  if (!subtask) return;
-  subtask.done = !subtask.done; state.planner.updatedAt = new Date().toISOString(); save();
-}
-function openModal(selector) { $(selector).classList.remove("hidden"); setTimeout(() => $(selector+" textarea")?.focus(), 50); }
-function closeModals() { $$(".modal-backdrop").forEach(modal => modal.classList.add("hidden")); }
-function toast(text) { $("#toast").textContent = text; $("#toast").classList.remove("hidden"); setTimeout(() => $("#toast").classList.add("hidden"),2200); }
-
-async function syncPull() {
-  if (!state.syncCode || !workerUrl()) return;
-  state.syncStatus = "Syncing…"; render();
-  try {
-    const response = await fetch(`${workerUrl()}/sync?code=${state.syncCode}`);
-    if (response.status === 404) { state.syncStatus = "Ready to sync"; render(); return; }
-    if (!response.ok) throw new Error();
-    state.planner = (await response.json()).data;
-    state.syncStatus = "Synced just now"; save(false);
-  } catch { state.syncStatus = "Saved on this device"; render(); }
-}
-async function syncPush() {
-  if (!workerUrl()) { state.syncStatus = "Worker URL needed"; render(); return; }
-  state.syncStatus = "Syncing…"; render();
-  try {
-    const response = await fetch(workerUrl()+"/sync",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:state.syncCode,data:state.planner})});
-    if (!response.ok) throw new Error();
-    state.syncStatus = "Synced just now";
-  } catch { state.syncStatus = "Saved on this device"; }
-  render();
-}
-function showSync() {
-  $("#syncHeading").textContent = state.syncCode ? "Your sync code" : "Keep every device together";
-  $("#syncBody").innerHTML = state.syncCode ? `
-    <div class="code-display">${state.syncCode.slice(0,4)} ${state.syncCode.slice(4)}</div>
-    <p class="modal-note">Enter this code on your iPhone or iPad to open the same planner.</p>
-    <button class="primary full" id="copyCode">Copy code</button>` : `
-    <p class="modal-note">Create a private code on your first device, then enter it on the other one.</p>
-    <button class="primary full" id="createCode">Create my sync code</button><div class="or-divider"><span>or</span></div>
-    <label class="code-input-label">I already have a code<input id="existingCode" maxlength="8" placeholder="ABCD1234"></label>
-    <button class="secondary full" id="connectCode">Connect this device</button>`;
-  $("#copyCode")?.addEventListener("click", () => navigator.clipboard.writeText(state.syncCode).then(() => toast("Sync code copied")));
-  $("#createCode")?.addEventListener("click", () => connect(randomCode()));
-  $("#connectCode")?.addEventListener("click", () => connect($("#existingCode").value));
-  openModal("#syncModal");
-}
-function connect(code) {
-  const clean = code.toUpperCase().replace(/[^A-Z2-9]/g,"").slice(0,8);
-  if (clean.length !== 8) return toast("Enter all 8 characters");
-  state.syncCode = clean; localStorage.setItem(CODE_KEY,clean); closeModals(); syncPull();
-}
-
-$("#addButton").addEventListener("click", () => openModal("#addModal"));
-$("#syncButton").addEventListener("click", showSync);
-$("#settingsButton").addEventListener("click", showSync);
-$$("[data-close]").forEach(button => button.addEventListener("click", closeModals));
-$$(".modal-backdrop").forEach(modal => modal.addEventListener("click", event => { if (event.target === modal) closeModals(); }));
-$$("[data-coming]").forEach(button => button.addEventListener("click", () => toast(button.dataset.coming+" is coming next")));
-$("#naturalEntry").addEventListener("input", event => {
-  const value = event.target.value.trim();
-  $("#entryPreview").classList.toggle("hidden", !value);
-  if (value) { const item = parseEntry(value); $("#entryPreview").innerHTML = `<strong>${escapeHtml(item.title)}</strong><span>${cadenceLabel(item)} · ${item.subtasks.length} subtask${item.subtasks.length===1?"":"s"}</span>`; }
-});
-$("#addForm").addEventListener("submit", event => {
-  event.preventDefault(); const value = $("#naturalEntry").value.trim(); if (!value) return;
-  state.planner.items.push(parseEntry(value)); state.planner.updatedAt = new Date().toISOString();
-  $("#naturalEntry").value = ""; $("#entryPreview").classList.add("hidden"); closeModals(); save();
-});
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") syncPull(); });
-window.addEventListener("focus", syncPull);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
-render(); if (state.syncCode) syncPull();
+const STORAGE_KEY="opalday-data-v1",CODE_KEY="opalday-sync-code",DAY=86400000;
+const state={planner:normalize(load(STORAGE_KEY,{items:[],updatedAt:""})),syncCode:localStorage.getItem(CODE_KEY)||"",syncStatus:"Local only",saveTimer:null,view:"today",filter:"all",selectedId:null};
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],workerUrl=()=>(window.OPALDAY_CONFIG?.workerUrl||"").replace(/\/$/,"");
+function load(k,f){try{return JSON.parse(localStorage.getItem(k))||f}catch{return f}}
+function normalize(p){p||={items:[],updatedAt:""};p.items=(p.items||[]).map(i=>({target:1,cadence:"weekly",completions:[],subtasks:[],rescueReminder:true,...i,subtasks:(i.subtasks||[]).map(s=>({done:false,...s}))}));return p}
+function uid(){return crypto.randomUUID?.()||Date.now().toString(36)+Math.random().toString(36).slice(2)}
+function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+function randomCode(){const c="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:8},()=>c[Math.floor(Math.random()*c.length)]).join("")}
+function parseEntry(value){const [rawTitle,rawSubs=""]=value.split(/:(.+)/);let title=rawTitle.trim(),lower=title.toLowerCase();const kind=/med|dose|injection|vyvgart|nucala/.test(lower)?"medication":/clean|tidy|organize|reset|sheets|closet|desk|table|shelf|room/.test(lower)?"reset":"habit";let cadence=/every day|daily|each day/.test(lower)?"daily":/month/.test(lower)?"monthly":"weekly";const target=Number(lower.match(/(\d+)\s*(?:x|times?)\s*(?:a|per|each)?\s*week/)?.[1]||1),intervalWeeks=Number(lower.match(/every\s+(\d+)\s+weeks?/)?.[1]||0)||null;if(intervalWeeks)cadence="interval";const days=["sunday","monday","tuesday","wednesday","thursday","friday","saturday"],fixedDay=days.findIndex(d=>lower.includes(d)),time=lower.match(/(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);let fixedTime=null;if(time){let h=Number(time[1]);if(time[3]==="pm"&&h<12)h+=12;if(time[3]==="am"&&h===12)h=0;fixedTime=String(h).padStart(2,"0")+":"+(time[2]||"00")}
+title=title.replace(/\b(?:every day|daily|each day|once a week|every week|weekly|once a month|every month|monthly)\b/gi,"").replace(/\b\d+\s*(?:x|times?)\s*(?:a|per|each)?\s*week\b/gi,"").replace(/\bevery\s+\d+\s+weeks?\b/gi,"").replace(/\b(?:on\s+)?(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)s?\b/gi,"").replace(/\b(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/gi,"").replace(/\s+/g," ").trim()||rawTitle.trim();const subtasks=rawSubs.split(",").map(v=>v.trim()).filter(Boolean).map(title=>({id:uid(),title,done:false}));return{id:uid(),title,kind,cadence,target,intervalWeeks,fixedDay:fixedDay>=0?fixedDay:null,fixedTime,hardDate:null,subtasks,completed:false,completions:[],rescueReminder:true,createdAt:new Date().toISOString()}}
+function cadenceLabel(i){if(i.cadence==="daily")return"Every day";if(i.cadence==="monthly")return"Once a month";if(i.cadence==="interval")return`Every ${i.intervalWeeks||1} weeks`;if(i.cadence==="once")return i.hardDate?new Date(i.hardDate+"T12:00:00").toLocaleDateString([],{month:"short",day:"numeric",year:"numeric"}):"One hard date";return i.target>1?`${i.target} times this week`:i.fixedDay!==null?`Every ${["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][i.fixedDay]}`:"Once a week"}
+function periodCount(i,now=new Date()){const ds=(i.completions||[]).map(v=>new Date(v));if(i.cadence==="daily")return ds.filter(d=>d.toDateString()===now.toDateString()).length;if(i.cadence==="monthly")return ds.filter(d=>d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()).length;if(i.cadence==="once")return ds.length;const s=new Date(now);s.setHours(0,0,0,0);s.setDate(s.getDate()-((s.getDay()+6)%7));const e=new Date(s);e.setDate(e.getDate()+7);return ds.filter(d=>d>=s&&d<e).length}
+function target(i){return i.cadence==="weekly"?(i.target||1):1}function complete(i){return periodCount(i)>=target(i)}
+function dueToday(i){if(i.cadence==="once")return !i.hardDate||i.hardDate===new Date().toISOString().slice(0,10)||complete(i);if(i.cadence==="weekly"&&i.fixedDay!==null&&i.target===1)return i.fixedDay===new Date().getDay()||complete(i);return true}
+function save(push=true){localStorage.setItem(STORAGE_KEY,JSON.stringify(state.planner));render();if(push&&state.syncCode){clearTimeout(state.saveTimer);state.saveTimer=setTimeout(syncPush,650)}}
+function render(){$("#todayDate").textContent=new Intl.DateTimeFormat("en-US",{weekday:"long",month:"long",day:"numeric"}).format(new Date());$$(".view").forEach(v=>v.classList.add("hidden"));$("#"+state.view+"View").classList.remove("hidden");$("#progressCard").classList.toggle("hidden",state.view!=="today");$$("[data-view]").forEach(b=>b.classList.toggle("selected",b.dataset.view===state.view));$("#syncText").textContent=state.syncCode?state.syncStatus:"Set up sync";$(".sync-dot").classList.toggle("active",!!state.syncCode);renderToday();renderSystems();renderProgress()}
+function renderToday(){const due=state.planner.items.filter(dueToday),done=due.filter(complete).length,total=due.length,pct=total?Math.round(done/total*100):0;$("#progressTitle").textContent=total?`${done} of ${total} complete`:"Your day is wide open";$("#progressNote").textContent=total?(pct===100?"That’s plenty for today.":"One thing at a time is plenty."):"Add your first habit, reset, medication, or event.";$("#progressNumber").textContent=pct+"%";$("#progressRing").style.setProperty("--progress",pct*3.6+"deg");const items=[...due].sort((a,b)=>(a.fixedTime||"99:99").localeCompare(b.fixedTime||"99:99"));$("#items").innerHTML=items.length?`<div class="timeline">${items.map(itemHtml).join("")}</div>`:`<button class="empty-state" id="emptyAdd"><span class="empty-orb">＋</span><strong>Build today naturally</strong><span>Try “PT three times a week” or “Organize closet monthly: clothes, shoes, donations.”</span></button>`;$("#emptyAdd")?.addEventListener("click",()=>openModal("#addModal"));bindButtons()}
+function itemHtml(i){const time=i.fixedTime?new Date("2000-01-01T"+i.fixedTime).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"Anytime",done=complete(i);return`<article class="timeline-item kind-${i.kind} ${done?"is-complete":""}"><div class="time-column">${time}</div><div class="timeline-rail"><span></span></div><div class="item-bubble"><button class="check-button" data-toggle-item="${i.id}">${done?"✓":""}</button><div class="item-content"><button class="item-main" data-open-item="${i.id}"><div class="item-title-row"><strong>${escapeHtml(i.title)}</strong><span class="kind-label">${i.kind}</span></div><span class="cadence">${cadenceLabel(i)} · ${periodCount(i)}/${target(i)} this period</span></button>${i.subtasks.length?`<div class="subtasks">${i.subtasks.map(s=>`<button class="${s.done?"done":""}" data-item="${i.id}" data-subtask="${s.id}"><i>${s.done?"✓":""}</i>${escapeHtml(s.title)}</button>`).join("")}</div>`:""}</div></div></article>`}
+function renderSystems(){const items=state.planner.items.filter(i=>state.filter==="all"||i.kind===state.filter);$("#systemList").innerHTML=items.length?items.map(i=>`<button class="system-card" data-open-item="${i.id}"><span class="system-icon kind-${i.kind}">${i.kind==="medication"?"✦":i.kind==="reset"?"⌂":"✓"}</span><span><strong>${escapeHtml(i.title)}</strong><small>${cadenceLabel(i)} · ${periodCount(i)}/${target(i)}</small></span><b>›</b></button>`).join(""):`<div class="small-empty">Nothing here yet.</div>`;bindButtons()}
+function renderProgress(){const items=state.planner.items,done=items.filter(complete).length,checks=items.reduce((s,i)=>s+(i.completions||[]).length,0);$("#statsGrid").innerHTML=`<div><strong>${done}</strong><span>goals met now</span></div><div><strong>${checks}</strong><span>total check-ins</span></div><div><strong>${items.length}</strong><span>active systems</span></div>`;const weekly=items.filter(i=>i.cadence==="weekly"),hit=weekly.reduce((s,i)=>s+Math.min(periodCount(i),target(i)),0),goal=weekly.reduce((s,i)=>s+target(i),0);$("#weekPercent").textContent=(goal?Math.round(hit/goal*100):0)+"%";const monday=new Date();monday.setHours(0,0,0,0);monday.setDate(monday.getDate()-((monday.getDay()+6)%7));$("#weekBars").innerHTML=Array.from({length:7},(_,n)=>{const d=new Date(monday);d.setDate(d.getDate()+n);const count=items.reduce((s,i)=>s+(i.completions||[]).filter(v=>new Date(v).toDateString()===d.toDateString()).length,0);return`<div><span style="--h:${Math.min(100,18+count*24)}%"></span><small>${["M","T","W","T","F","S","S"][n]}</small></div>`}).join("");const monthly=items.filter(i=>i.cadence==="monthly");$("#monthlyList").innerHTML=monthly.length?monthly.map(i=>`<button class="monthly-row" data-open-item="${i.id}"><span>${complete(i)?"✓":"○"}</span><strong>${escapeHtml(i.title)}</strong><small>${complete(i)?"Done":"Open"}</small></button>`).join(""):`<p class="modal-note">Add a monthly room reset and it’ll appear here.</p>`;bindButtons()}
+function bindButtons(){$$("[data-toggle-item]").forEach(b=>b.onclick=()=>toggleItem(b.dataset.toggleItem));$$("[data-subtask]").forEach(b=>b.onclick=()=>toggleSubtask(b.dataset.item,b.dataset.subtask));$$("[data-open-item]").forEach(b=>b.onclick=()=>showItem(b.dataset.openItem))}
+function toggleItem(id){const i=state.planner.items.find(i=>i.id===id);if(!i)return;if(complete(i))i.completions.pop();else i.completions.push(new Date().toISOString());i.completed=complete(i);changed()}
+function toggleSubtask(iid,sid){const s=state.planner.items.find(i=>i.id===iid)?.subtasks.find(s=>s.id===sid);if(!s)return;s.done=!s.done;changed()}
+function changed(){state.planner.updatedAt=new Date().toISOString();save()}
+function showItem(id){const i=state.planner.items.find(i=>i.id===id);if(!i)return;state.selectedId=id;$("#itemModalTitle").textContent=i.title;$("#itemModalBody").innerHTML=`<div class="detail-grid"><span>Schedule<strong>${cadenceLabel(i)}</strong></span><span>Current progress<strong>${periodCount(i)} / ${target(i)}</strong></span><span>Streak protection<strong>${i.rescueReminder?"Gentle reminder on":"Off"}</strong></span><span>Type<strong>${i.kind}</strong></span></div>${i.subtasks.length?`<div class="detail-subtasks">${i.subtasks.map(s=>`<span>${s.done?"✓":"○"} ${escapeHtml(s.title)}</span>`).join("")}</div>`:""}`;openModal("#itemModal")}
+function openModal(s){$(s).classList.remove("hidden");setTimeout(()=>$(s+" textarea")?.focus(),50)}function closeModals(){$$(".modal-backdrop").forEach(m=>m.classList.add("hidden"))}function toast(t){$("#toast").textContent=t;$("#toast").classList.remove("hidden");setTimeout(()=>$("#toast").classList.add("hidden"),2200)}
+function updateFields(){const c=$("#itemCadence").value;$("#targetField").classList.toggle("hidden",c!=="weekly");$("#intervalField").classList.toggle("hidden",c!=="interval");$("#dateField").classList.toggle("hidden",c!=="once");$("#dayField").classList.toggle("hidden",!["weekly","interval"].includes(c))}
+function populateEditor(i){$("#itemKind").value=i.kind;$("#itemCadence").value=i.cadence;$("#itemTarget").value=i.target||1;$("#itemInterval").value=i.intervalWeeks||4;$("#itemDay").value=i.fixedDay??"";$("#itemTime").value=i.fixedTime||"";$("#itemDate").value=i.hardDate||"";$("#scheduleEditor").classList.remove("hidden");updateFields()}
+async function syncPull(){if(!state.syncCode||!workerUrl())return;state.syncStatus="Syncing…";render();try{const r=await fetch(`${workerUrl()}/sync?code=${state.syncCode}`);if(r.status===404){state.syncStatus="Ready to sync";render();return}if(!r.ok)throw Error();state.planner=normalize((await r.json()).data);state.syncStatus="Synced just now";save(false)}catch{state.syncStatus="Saved on this device";render()}}
+async function syncPush(){if(!workerUrl()){state.syncStatus="Worker URL needed";render();return}state.syncStatus="Syncing…";render();try{const r=await fetch(workerUrl()+"/sync",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:state.syncCode,data:state.planner})});if(!r.ok)throw Error();state.syncStatus="Synced just now"}catch{state.syncStatus="Saved on this device"}render()}
+function showSync(){$("#syncHeading").textContent=state.syncCode?"Your sync code":"Keep every device together";$("#syncBody").innerHTML=state.syncCode?`<div class="code-display">${state.syncCode.slice(0,4)} ${state.syncCode.slice(4)}</div><p class="modal-note">Enter this code on your iPhone or iPad to open the same planner.</p><button class="primary full" id="copyCode">Copy code</button>`:`<p class="modal-note">Create a private code on your first device, then enter it on the other one.</p><button class="primary full" id="createCode">Create my sync code</button><div class="or-divider"><span>or</span></div><label class="code-input-label">I already have a code<input id="existingCode" maxlength="8" placeholder="ABCD1234"></label><button class="secondary full" id="connectCode">Connect this device</button>`;$("#copyCode")?.addEventListener("click",()=>navigator.clipboard.writeText(state.syncCode).then(()=>toast("Sync code copied")));$("#createCode")?.addEventListener("click",()=>connect(randomCode()));$("#connectCode")?.addEventListener("click",()=>connect($("#existingCode").value));openModal("#syncModal")}
+function connect(code){const c=code.toUpperCase().replace(/[^A-Z2-9]/g,"").slice(0,8);if(c.length!==8)return toast("Enter all 8 characters");state.syncCode=c;localStorage.setItem(CODE_KEY,c);closeModals();syncPull()}
+$("#addButton").onclick=()=>openModal("#addModal");$$(".view-add").forEach(b=>b.onclick=()=>openModal("#addModal"));$("#syncButton").onclick=showSync;$("#settingsButton").onclick=showSync;$$("[data-close]").forEach(b=>b.onclick=closeModals);$$(".modal-backdrop").forEach(m=>m.onclick=e=>{if(e.target===m)closeModals()});$$("[data-view]").forEach(b=>b.onclick=()=>{state.view=b.dataset.view;render();window.scrollTo({top:0,behavior:"smooth"})});$$("[data-filter]").forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter;$$("[data-filter]").forEach(x=>x.classList.toggle("selected",x===b));renderSystems()});$("#itemCadence").onchange=updateFields;
+$("#naturalEntry").oninput=e=>{const v=e.target.value.trim();$("#entryPreview").classList.toggle("hidden",!v);$("#scheduleEditor").classList.toggle("hidden",!v);if(v){const i=parseEntry(v);populateEditor(i);$("#entryPreview").innerHTML=`<strong>${escapeHtml(i.title)}</strong><span>Suggested: ${cadenceLabel(i)} · change anything below</span>`}};
+$("#addForm").onsubmit=e=>{e.preventDefault();const v=$("#naturalEntry").value.trim();if(!v)return;const i=parseEntry(v);i.kind=$("#itemKind").value;i.cadence=$("#itemCadence").value;i.target=Number($("#itemTarget").value)||1;i.intervalWeeks=Number($("#itemInterval").value)||4;i.fixedDay=$("#itemDay").value===""?null:Number($("#itemDay").value);i.fixedTime=$("#itemTime").value||null;i.hardDate=$("#itemDate").value||null;state.planner.items.push(i);$("#naturalEntry").value="";$("#entryPreview").classList.add("hidden");$("#scheduleEditor").classList.add("hidden");closeModals();changed();toast("Added gently")};
+$("#deleteItem").onclick=()=>{if(!state.selectedId)return;state.planner.items=state.planner.items.filter(i=>i.id!==state.selectedId);state.selectedId=null;closeModals();changed();toast("System deleted")};document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")syncPull()});window.addEventListener("focus",syncPull);if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js");render();if(state.syncCode)syncPull();

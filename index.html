@@ -21,20 +21,35 @@
       <button class="sync-pill" id="syncButton"><span class="sync-dot"></span><span id="syncText">Set up sync</span></button>
     </header>
 
-    <section class="progress-card">
+    <section class="progress-card" id="progressCard">
       <div class="progress-copy"><span class="progress-kicker">Gentle progress</span><strong id="progressTitle">Your day is wide open</strong><span id="progressNote">Add your first habit, reset, medication, or event.</span></div>
       <div class="progress-ring" id="progressRing"><span id="progressNumber">0%</span></div>
     </section>
 
-    <section class="timeline-section">
+    <section class="timeline-section view" id="todayView">
       <div class="section-heading"><div><p class="eyebrow">Your timeline</p><h2>What’s happening</h2></div><button class="add-button" id="addButton">＋ Add</button></div>
       <div id="items"></div>
     </section>
 
+    <section class="view hidden" id="habitsView">
+      <div class="section-heading"><div><p class="eyebrow">Your systems</p><h2>Habits & resets</h2></div><button class="add-button view-add">＋ Add</button></div>
+      <div class="filter-row" id="habitFilters">
+        <button class="selected" data-filter="all">All</button><button data-filter="habit">Habits</button><button data-filter="reset">Resets</button><button data-filter="medication">Meds</button>
+      </div>
+      <div class="system-list" id="systemList"></div>
+    </section>
+
+    <section class="view hidden" id="progressView">
+      <p class="eyebrow">Gentle progress</p><h2>Your rhythm</h2>
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="week-card"><div class="section-heading"><div><p class="eyebrow">Monday–Sunday</p><h2>This week</h2></div><strong id="weekPercent">0%</strong></div><div class="week-bars" id="weekBars"></div></div>
+      <div class="month-card"><p class="eyebrow">Room reset</p><h2>Monthly systems</h2><div id="monthlyList"></div></div>
+    </section>
+
     <nav class="bottom-nav">
-      <button class="selected"><span>◉</span>Today</button>
-      <button data-coming="Habits"><span>✓</span>Habits</button>
-      <button data-coming="Progress"><span>⌁</span>Progress</button>
+      <button class="selected" data-view="today"><span>◉</span>Today</button>
+      <button data-view="habits"><span>✓</span>Habits</button>
+      <button data-view="progress"><span>⌁</span>Progress</button>
       <button id="settingsButton"><span>⚙</span>Settings</button>
     </nav>
   </main>
@@ -46,6 +61,15 @@
       <form id="addForm">
         <textarea id="naturalEntry" placeholder="Organize my closet once a month: hanging clothes, shoes, top shelf"></textarea>
         <div class="preview hidden" id="entryPreview"></div>
+        <div class="schedule-editor hidden" id="scheduleEditor">
+          <label>Type<select id="itemKind"><option value="habit">Habit</option><option value="reset">Household reset</option><option value="medication">Medication</option><option value="event">Event</option></select></label>
+          <label>Frequency<select id="itemCadence"><option value="daily">Every day</option><option value="weekly">Weekly goal</option><option value="monthly">Once a month</option><option value="interval">Every number of weeks</option><option value="once">One hard date</option></select></label>
+          <label id="targetField">Times each week<input id="itemTarget" type="number" min="1" max="14" value="1"></label>
+          <label id="intervalField" class="hidden">Number of weeks<input id="itemInterval" type="number" min="2" max="52" value="4"></label>
+          <label id="dayField">Preferred day (optional)<select id="itemDay"><option value="">Any day</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select></label>
+          <label id="dateField" class="hidden">Date<input id="itemDate" type="date"></label>
+          <label>Time (optional)<input id="itemTime" type="time"></label>
+        </div>
         <div class="modal-actions"><button type="button" class="secondary" data-close>Cancel</button><button class="primary" id="addSubmit">Add item</button></div>
       </form>
     </section>
@@ -55,6 +79,14 @@
     <section class="modal-sheet">
       <div class="sheet-handle"></div><p class="eyebrow">Private device sync</p><h2 id="syncHeading">Keep every device together</h2>
       <div id="syncBody"></div><button class="text-button" data-close>Done</button>
+    </section>
+  </div>
+
+  <div class="modal-backdrop hidden" id="itemModal">
+    <section class="modal-sheet">
+      <div class="sheet-handle"></div><p class="eyebrow">System details</p><h2 id="itemModalTitle"></h2>
+      <div id="itemModalBody"></div>
+      <div class="modal-actions"><button class="secondary" data-close>Close</button><button class="danger" id="deleteItem">Delete</button></div>
     </section>
   </div>
 
