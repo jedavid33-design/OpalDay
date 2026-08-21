@@ -74,6 +74,17 @@ Commit that change and wait for GitHub Pages to update.
 
 ## Version 0.3 features
 
+## Version 0.4 additions
+
+- Events, Habits, Medications, Resets, and Completed overlay toggles
+- Habit and reset overlays across Timeline, Day, Week, and Month
+- Flexible weekly goals in an Anytime This Week band
+- Monthly resets in a This Month band
+- Medication doses as hard deadlines with overdue priority
+- Taken, Snooze 30m, and Reschedule actions
+- Escalating medication reminders when OpalDay is active
+- Built-in US federal holidays in the color-controlled Holidays calendar
+
 - Blank slate; no hardwired habits
 - Natural entry that suggests a schedule without locking it in
 - Editable type, frequency, weekly target, preferred day, time, interval, and hard date before saving

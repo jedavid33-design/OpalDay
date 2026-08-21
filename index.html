@@ -14,6 +14,7 @@
   <link rel="icon" href="./app-icon.png">
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./calendar.css">
+  <link rel="stylesheet" href="./v04.css">
 </head>
 <body>
   <main class="app-shell">
@@ -49,6 +50,7 @@
 
     <section class="view hidden" id="calendarView">
       <div class="view-switcher" id="calendarViewSwitcher"><button class="selected" data-cal-view="timeline">Timeline</button><button data-cal-view="day">Day</button><button data-cal-view="week">Week</button><button data-cal-view="month">Month</button></div>
+      <div class="overlay-filters" id="overlayFilters"><button data-overlay="events">Events</button><button data-overlay="habits">Habits</button><button data-overlay="medications">Medications</button><button data-overlay="resets">Resets</button><button data-overlay="completed">Completed</button></div>
       <div class="date-nav"><button id="calPrev">‹</button><button id="calToday">Today</button><strong id="calRange"></strong><button id="calNext">›</button></div>
       <div class="section-heading"><div><p class="eyebrow">Color-coded</p><h2>Your calendar</h2></div><button class="add-button" id="addEventButton">＋ Event</button></div>
       <div id="calendarCanvas"></div>
@@ -97,6 +99,7 @@
     <section class="modal-sheet">
       <div class="sheet-handle"></div><p class="eyebrow">System details</p><h2 id="itemModalTitle"></h2>
       <div id="itemModalBody"></div>
+      <div class="medication-actions hidden" id="medicationActions"><button class="primary" id="medTaken">Taken</button><button class="secondary" id="medSnooze">Snooze 30m</button><button class="secondary" id="medReschedule">Reschedule</button></div>
       <div class="modal-actions"><button class="secondary" data-close>Close</button><button class="danger" id="deleteItem">Delete</button></div>
     </section>
   </div>
