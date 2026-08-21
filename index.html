@@ -13,6 +13,7 @@
   <link rel="apple-touch-icon" href="./app-icon.png">
   <link rel="icon" href="./app-icon.png">
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./calendar.css">
 </head>
 <body>
   <main class="app-shell">
@@ -46,9 +47,19 @@
       <div class="month-card"><p class="eyebrow">Room reset</p><h2>Monthly systems</h2><div id="monthlyList"></div></div>
     </section>
 
-    <nav class="bottom-nav">
+    <section class="view hidden" id="calendarView">
+      <div class="view-switcher" id="calendarViewSwitcher"><button class="selected" data-cal-view="timeline">Timeline</button><button data-cal-view="day">Day</button><button data-cal-view="week">Week</button><button data-cal-view="month">Month</button></div>
+      <div class="date-nav"><button id="calPrev">‹</button><button id="calToday">Today</button><strong id="calRange"></strong><button id="calNext">›</button></div>
+      <div class="section-heading"><div><p class="eyebrow">Color-coded</p><h2>Your calendar</h2></div><button class="add-button" id="addEventButton">＋ Event</button></div>
+      <div id="calendarCanvas"></div>
+      <div class="calendar-manager"><div class="section-heading"><div><p class="eyebrow">Calendars</p><h2>Show & organize</h2></div><button class="secondary mini" id="newCalendarButton">＋ New</button></div><div id="calendarList"></div>
+      <div class="import-card"><p class="eyebrow">Sports calendars</p><h2>Link or upload iCal</h2><label class="field">Public .ics link<input id="icalUrl" type="url" placeholder="https://example.com/schedule.ics"></label><label class="field">Add to<select id="icalCalendar"></select></label><button class="primary full" id="linkIcal">Link calendar</button><div class="or-divider"><span>or</span></div><label class="file-button">Choose .ics file<input id="icalFile" type="file" accept=".ics,text/calendar"></label><button class="secondary full" id="refreshIcal">Refresh linked calendars</button><p class="modal-note" id="icalStatus">Linked calendars refresh daily.</p></div></div>
+    </section>
+
+    <nav class="bottom-nav five">
       <button class="selected" data-view="today"><span>◉</span>Today</button>
       <button data-view="habits"><span>✓</span>Habits</button>
+      <button data-view="calendar"><span>▦</span>Calendar</button>
       <button data-view="progress"><span>⌁</span>Progress</button>
       <button id="settingsButton"><span>⚙</span>Settings</button>
     </nav>
@@ -89,9 +100,12 @@
       <div class="modal-actions"><button class="secondary" data-close>Close</button><button class="danger" id="deleteItem">Delete</button></div>
     </section>
   </div>
+  <div class="modal-backdrop hidden" id="eventModal"><section class="modal-sheet"><div class="sheet-handle"></div><p class="eyebrow">Calendar event</p><h2 id="eventModalTitle">Add event</h2><label class="field">Title<input id="eventTitle"></label><div class="schedule-editor"><label>Calendar<select id="eventCalendar"></select></label><label>Date<input id="eventDate" type="date"></label><label>Start time<input id="eventTime" type="time"></label><label>End time<input id="eventEnd" type="time"></label></div><div class="modal-actions three"><button class="danger hidden" id="deleteEvent">Delete</button><button class="secondary" data-close>Cancel</button><button class="primary" id="saveEvent">Save</button></div></section></div>
+  <div class="modal-backdrop hidden" id="calendarEditModal"><section class="modal-sheet"><div class="sheet-handle"></div><p class="eyebrow">Calendar</p><h2 id="calendarEditTitle">New calendar</h2><label class="field">Name<input id="calendarName"></label><label class="field">Color<input id="calendarColor" type="color" value="#7f3659"></label><div class="modal-actions"><button class="secondary" data-close>Cancel</button><button class="primary" id="saveCalendar">Save calendar</button></div></section></div>
 
   <div class="toast hidden" id="toast"></div>
   <script src="./config.js"></script>
   <script src="./app.js"></script>
+  <script src="./calendar.js"></script>
 </body>
 </html>

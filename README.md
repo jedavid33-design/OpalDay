@@ -72,7 +72,7 @@ Commit that change and wait for GitHub Pages to update.
 4. Open OpalDay on the second device.
 5. Tap **Set up sync**, enter the same code, and connect.
 
-## Version 0.2 features
+## Version 0.3 features
 
 - Blank slate; no hardwired habits
 - Natural entry that suggests a schedule without locking it in
@@ -89,3 +89,29 @@ Commit that change and wait for GitHub Pages to update.
 - Opal app icon
 
 Existing v0.1 data and sync codes remain compatible.
+
+### Calendar
+
+- Timeline, Day, Monday–Sunday Week, and Month views
+- Multiple calendars with editable colors and visibility controls
+- Manual events with start and end times
+- Upload .ics files
+- Link public HTTPS iCal feeds and refresh them through the Worker
+- Daily automatic refresh plus Refresh linked calendars
+- Imported events remain editable
+- User edits survive feed refreshes
+- Deleted feed events stay deleted
+
+### Visual refresh
+
+- Richer opal background color
+- Plum/wine navigation, buttons, filters, and progress accents
+- Calendar-colored event rails, cards, and month dots
+
+## Updating from v0.2
+
+Upload the files in the v0.3 GitHub package to the repository root. Do not
+replace config.js; it already contains your deployed Worker address.
+
+Then replace the deployed Cloudflare Worker code with worker/worker.js and
+deploy. The existing D1 database and DB binding stay unchanged.
