@@ -23,11 +23,6 @@
       <button class="sync-pill" id="syncButton"><span class="sync-dot"></span><span id="syncText">Set up sync</span></button>
     </header>
 
-    <section class="progress-card" id="progressCard">
-      <div class="progress-copy"><span class="progress-kicker">Gentle progress</span><strong id="progressTitle">Your day is wide open</strong><span id="progressNote">Add your first habit, reset, medication, or event.</span></div>
-      <div class="progress-ring" id="progressRing"><span id="progressNumber">0%</span></div>
-    </section>
-
     <section class="timeline-section view" id="todayView">
       <div class="section-heading"><div><p class="eyebrow">Your timeline</p><h2>What’s happening</h2></div><button class="add-button" id="addButton">＋ Add</button></div>
       <div id="items"></div>
@@ -35,6 +30,10 @@
 
     <section class="view hidden" id="habitsView">
       <div class="section-heading"><div><p class="eyebrow">Your systems</p><h2>Habits & resets</h2></div><button class="add-button view-add">＋ Add</button></div>
+      <section class="progress-card" id="progressCard">
+        <div class="progress-copy"><span class="progress-kicker">Gentle progress</span><strong id="progressTitle">Your day is wide open</strong><span id="progressNote">Add your first habit, reset, or medication.</span></div>
+        <div class="progress-ring" id="progressRing"><span id="progressNumber">0%</span></div>
+      </section>
       <div class="filter-row" id="habitFilters">
         <button class="selected" data-filter="all">All</button><button data-filter="habit">Habits</button><button data-filter="reset">Resets</button><button data-filter="medication">Meds</button>
       </div>

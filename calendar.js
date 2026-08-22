@@ -31,7 +31,11 @@
   state.calView=localStorage.getItem("opalday-cal-view")||"timeline";
   state.calCursor=new Date();
   state.editEvent=null; state.editCalendar=null;
-  state.calOverlays=JSON.parse(localStorage.getItem("opalday-cal-overlays")||"null")||{events:true,habits:true,medications:true,resets:true,completed:true};
+  state.calOverlays=JSON.parse(localStorage.getItem("opalday-cal-overlays")||"null")||{events:true,habits:false,medications:true,resets:false,completed:false};
+  if(localStorage.getItem("opalday-v06-calendar-defaults-final")!=="done"){
+    state.calOverlays.habits=false;state.calOverlays.resets=false;state.calOverlays.completed=false;
+    localStorage.setItem("opalday-cal-overlays",JSON.stringify(state.calOverlays));localStorage.setItem("opalday-v06-calendar-defaults-final","done")
+  }
   function dk(d){return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-")}
   function ws(d){const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x}
   function c(id){return state.planner.calendars.find(x=>x.id===id)||state.planner.calendars[0]}
@@ -74,7 +78,8 @@
   function entryColor(e){return e._system?(e.kind==="medication"?"#a7354f":e.kind==="reset"?"#4e9f99":"#8b6bb5"):c(e.calendarId).color}
   function eventsOn(d){
     const builtin=state.calOverlays.events&&c("holidays").visible!==false?usHolidays(d.getFullYear()).filter(e=>e.date===dk(d)):[];
-    const events=state.calOverlays.events?state.planner.events.filter(e=>e.date===dk(d)&&c(e.calendarId).visible!==false).concat(builtin):[];
+    const key=dk(d),monthDay=key.slice(5);
+    const events=state.calOverlays.events?state.planner.events.filter(e=>(e.date===key||((e.calendarId==="birthdays"||e.recurrence==="yearly")&&e.date?.slice(5)===monthDay))&&c(e.calendarId).visible!==false).map(e=>(e.date===key?e:{...e,_displayDate:key})).concat(builtin):[];
     const systems=state.planner.items.filter(i=>systemOn(i,d)).map(i=>Object.assign({},i,{_system:true,_date:dk(d),time:i.fixedTime}));
     return events.concat(systems).sort((a,b)=>{const pa=a.kind==="medication"&&medState(a,d)==="overdue"?0:a.kind==="medication"?1:2,pb=b.kind==="medication"&&medState(b,d)==="overdue"?0:b.kind==="medication"?1:2;return pa-pb||(a.time||"99").localeCompare(b.time||"99")})
   }
@@ -161,11 +166,12 @@
   $("#calPrev").onclick=()=>move(-1);$("#calNext").onclick=()=>move(1);$("#calToday").onclick=()=>{state.calCursor=new Date();render()};
   function move(n){const d=new Date(state.calCursor);if(state.calView==="month")d.setMonth(d.getMonth()+n);else d.setDate(d.getDate()+n*(state.calView==="week"?7:1));state.calCursor=d;render()}
   $("#addEventButton").onclick=()=>openEvent();$("#newCalendarButton").onclick=()=>openCalendar();
-  $("#saveEvent").onclick=()=>{const title=$("#eventTitle").value.trim();if(!title)return toast("Name the event");let e=state.editEvent?state.planner.events.find(x=>x.id===state.editEvent):null;if(!e){e={id:uid(),createdAt:new Date().toISOString(),source:"manual"};state.planner.events.push(e)}e.title=title;e.date=$("#eventDate").value;e.time=$("#eventTime").value||null;e.end=$("#eventEnd").value||null;e.calendarId=$("#eventCalendar").value;if(state.editEvent)e.userEdited=true;state.editEvent=null;closeModals();calendarChanged();toast("Event saved")};
+  $("#saveEvent").onclick=()=>{const title=$("#eventTitle").value.trim();if(!title)return toast("Name the event");let e=state.editEvent?state.planner.events.find(x=>x.id===state.editEvent):null;if(!e){e={id:uid(),createdAt:new Date().toISOString(),source:"manual"};state.planner.events.push(e)}e.title=title;e.date=$("#eventDate").value;e.time=$("#eventTime").value||null;e.end=$("#eventEnd").value||null;e.calendarId=$("#eventCalendar").value;e.recurrence=e.calendarId==="birthdays"?"yearly":null;if(state.editEvent)e.userEdited=true;state.editEvent=null;closeModals();calendarChanged();toast(e.recurrence==="yearly"?"Birthday saved every year":"Event saved")};
   $("#deleteEvent").onclick=()=>{const e=state.planner.events.find(x=>x.id===state.editEvent);if(!e)return;if(e.feedUid)state.planner.deletedFeedUids.push(e.feedUid);state.planner.events=state.planner.events.filter(x=>x.id!==e.id);state.editEvent=null;closeModals();calendarChanged();toast("Event deleted")};
   $("#saveCalendar").onclick=()=>{const name=$("#calendarName").value.trim();if(!name)return toast("Name the calendar");if(state.editCalendar){const x=c(state.editCalendar);x.name=name;x.color=$("#calendarColor").value}else state.planner.calendars.push({id:uid(),name,color:$("#calendarColor").value,visible:true});state.editCalendar=null;closeModals();calendarChanged()};
   $("#icalFile").onchange=async e=>{const file=e.target.files[0];if(!file)return;const cid=$("#icalCalendar").value;merge(parseICS(await file.text(),cid,null),cid,null);toast("iCal imported")};
   $("#refreshSports").onclick=()=>refreshSports();
+  window.OpalDayCalendar={todayEvents:()=>eventsOn(new Date()).filter(e=>!e._system),color:entryColor,calendarName:id=>c(id).name,openEvent};
   setTimeout(()=>{if(SPORTS.some(s=>{const x=state.planner.sports[s.id];return x.enabled&&(!x.lastRefresh||Date.now()-new Date(x.lastRefresh)>DAY)})&&workerUrl())refreshSports()},2200);
-  renderCalendar();
+  render();
 })();
