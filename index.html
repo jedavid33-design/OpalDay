@@ -26,6 +26,7 @@
     <section class="timeline-section view" id="todayView">
       <div class="section-heading"><div><p class="eyebrow">Your timeline</p><h2>What’s happening</h2></div><button class="add-button" id="addButton">＋ Add</button></div>
       <div id="items"></div>
+      <button class="today-reminders-button" id="todayRemindersButton"><span>◌</span><strong>Set reminders for today</strong><small>Notifications are off until you choose them.</small></button>
     </section>
 
     <section class="view hidden" id="habitsView">
@@ -102,12 +103,14 @@
       <div class="modal-actions"><button class="secondary" data-close>Close</button><button class="danger" id="deleteItem">Delete</button></div>
     </section>
   </div>
-  <div class="modal-backdrop hidden" id="eventModal"><section class="modal-sheet"><div class="sheet-handle"></div><p class="eyebrow">Calendar event</p><h2 id="eventModalTitle">Add event</h2><label class="field">Title<input id="eventTitle"></label><div class="schedule-editor"><label>Calendar<select id="eventCalendar"></select></label><label>Date<input id="eventDate" type="date"></label><label>Start time<input id="eventTime" type="time"></label><label>End time<input id="eventEnd" type="time"></label></div><div class="modal-actions three"><button class="danger hidden" id="deleteEvent">Delete</button><button class="secondary" data-close>Cancel</button><button class="primary" id="saveEvent">Save</button></div></section></div>
+  <div class="modal-backdrop hidden" id="eventModal"><section class="modal-sheet"><div class="sheet-handle"></div><p class="eyebrow">Calendar event</p><h2 id="eventModalTitle">Add event</h2><label class="field">Title<input id="eventTitle"></label><div class="schedule-editor"><label>Calendar<select id="eventCalendar"></select></label><label class="check-field"><input id="eventAllDay" type="checkbox"> All day</label><label>Start date<input id="eventDate" type="date"></label><label>End date<input id="eventEndDate" type="date"></label><label class="event-time-field">Start time<input id="eventTime" type="time"></label><label class="event-time-field">End time<input id="eventEnd" type="time"></label></div><div class="notification-editor"><div><strong>Notification</strong><span>Off unless you enable it</span></div><label class="switch-row"><input id="eventNotify" type="checkbox"> Remind me</label><label>When<select id="eventNotifyLead"><option value="0">At start time</option><option value="15">15 minutes before</option><option value="60">1 hour before</option><option value="1440">1 day before</option></select></label><label>Apply to<select id="eventNotifyScope"><option value="every">Every occurrence</option><option value="once">This occurrence only</option></select></label><label>For multi-day events<select id="eventNotifyDays"><option value="start">When it begins</option><option value="daily">Every day</option></select></label></div><div class="modal-actions three"><button class="danger hidden" id="deleteEvent">Delete</button><button class="secondary" data-close>Cancel</button><button class="primary" id="saveEvent">Save</button></div></section></div>
   <div class="modal-backdrop hidden" id="calendarEditModal"><section class="modal-sheet"><div class="sheet-handle"></div><p class="eyebrow">Calendar</p><h2 id="calendarEditTitle">New calendar</h2><label class="field">Name<input id="calendarName"></label><label class="field">Color<input id="calendarColor" type="color" value="#7f3659"></label><div class="modal-actions"><button class="secondary" data-close>Cancel</button><button class="primary" id="saveCalendar">Save calendar</button></div></section></div>
+  <div class="modal-backdrop hidden" id="todayRemindersModal"><section class="modal-sheet"><div class="sheet-handle"></div><p class="eyebrow">Today’s notifications</p><h2>Remind me today</h2><p class="modal-note">Timed items use their scheduled time. Anything untimed defaults to noon.</p><div class="today-reminder-list" id="todayReminderList"></div><div class="modal-actions"><button class="secondary" id="clearTodayReminders">Clear today</button><button class="primary" id="enableTodayReminders">Set all reminders</button></div><button class="text-button" data-close>Cancel</button></section></div>
 
   <div class="toast hidden" id="toast"></div>
   <script src="./config.js"></script>
   <script src="./app.js"></script>
   <script src="./calendar.js"></script>
+  <script src="./notifications.js"></script>
 </body>
 </html>
