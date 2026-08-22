@@ -95,6 +95,22 @@
     </section>
   </div>
 
+  <div class="modal-backdrop hidden" id="settingsModal">
+    <section class="modal-sheet">
+      <div class="sheet-handle"></div><p class="eyebrow">OpalDay settings</p><h2>Settings</h2>
+      <div class="settings-card">
+        <div class="settings-card-copy"><span class="settings-icon">◌</span><span><strong>Notifications</strong><small id="notificationSettingsStatus">Off until you enable them</small></span></div>
+        <p class="modal-note">Enabling notifications only gives OpalDay permission. Every reminder stays off until you choose it.</p>
+        <button class="primary full" id="enableNotificationsSettings">Enable notifications</button>
+      </div>
+      <div class="settings-card">
+        <div class="settings-card-copy"><span class="settings-icon">↻</span><span><strong>Device sync</strong><small id="settingsSyncStatus">Keep your devices together</small></span></div>
+        <button class="secondary full" id="openSyncSettings">View sync settings</button>
+      </div>
+      <button class="text-button" data-close>Done</button>
+    </section>
+  </div>
+
   <div class="modal-backdrop hidden" id="itemModal">
     <section class="modal-sheet">
       <div class="sheet-handle"></div><p class="eyebrow">System details</p><h2 id="itemModalTitle"></h2>

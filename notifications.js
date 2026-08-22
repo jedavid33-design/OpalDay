@@ -22,6 +22,17 @@
       localStorage.setItem(PUSH_KEY,"true");return true
     }catch{toast("Couldn’t connect notifications yet");return false}
   }
+  function updateSettings(){
+    const status=$("#notificationSettingsStatus"),button=$("#enableNotificationsSettings");if(!status||!button)return;
+    const supported="serviceWorker"in navigator&&"PushManager"in window&&"Notification"in window,permission=supported?Notification.permission:"unsupported",connected=localStorage.getItem(PUSH_KEY)==="true";
+    button.disabled=false;
+    if(!supported){status.textContent="Install OpalDay on your Home Screen first";button.textContent="Notifications unavailable";button.disabled=true}
+    else if(permission==="denied"){status.textContent="Blocked in iPhone or iPad settings";button.textContent="Permission blocked";button.disabled=true}
+    else if(permission==="granted"&&connected){status.textContent="Ready — individual reminders remain opt-in";button.textContent="Notifications enabled";button.disabled=true}
+    else if(permission==="granted"){status.textContent="Permission granted — finish connecting";button.textContent="Finish notification setup"}
+    else{status.textContent="Off until you enable them";button.textContent="Enable notifications"}
+  }
+  async function enableFromSettings(){if(await ensurePush()){updateSettings();toast("Notifications are ready")}}
   function updateTodayButton(){const button=$("#todayRemindersButton");if(!button)return;const bucket=state.planner.dayReminders[todayKey()],count=(bucket?.items?.length||0)+(bucket?.events?.length||0)+(bucket?.custom?.length||0);button.classList.toggle("active",count>0);button.querySelector("strong").textContent=count?count+" reminder"+(count===1?"":"s")+" set for today":"Set reminders for today";button.querySelector("small").textContent=count?"Tap to review or clear them.":"Notifications are off until you choose them."}
   function showTodaySheet(){const entries=todayEntries().all,bucket=state.planner.dayReminders[todayKey()]||{items:[],events:[],custom:[]};$("#todayReminderList").innerHTML=entries.length?entries.map(x=>'<div class="today-reminder-row"><span><strong>'+escapeHtml(x.title)+'</strong><small>'+escapeHtml(x.kind)+'</small></span><b>'+prettyTime(x.time)+'</b></div>').join(""):'<div class="small-empty">Nothing needs a reminder today.</div>';$("#enableTodayReminders").disabled=!entries.length;$("#clearTodayReminders").disabled=!((bucket.items||[]).length||(bucket.events||[]).length||(bucket.custom||[]).length);openModal("#todayRemindersModal")}
   async function enableToday(){const entries=todayEntries();if(!entries.all.length)return;if(!await ensurePush())return;const bucket=dayBucket();bucket.items=[...new Set(entries.items.map(x=>x.id))];bucket.events=[...new Set(entries.events.filter(e=>e.source!=="builtin").map(x=>x.id))];bucket.custom=entries.events.filter(e=>e.source==="builtin").map(e=>({id:e.id,title:e.title,time:reminderTime(e)}));closeModals();changed();updateTodayButton();toast("Today’s reminders are on")}
@@ -32,8 +43,8 @@
   async function saveItemNotification(i){const enabled=$("#itemNotify").checked,scope=$("#itemNotifyScope").value,time=$("#itemNotifyTime").value||"12:00";if(enabled&&!await ensurePush())return;const bucket=dayBucket();if(scope==="today"){i.notification={...(i.notification||{}),enabled:false,time};bucket.items=enabled?[...new Set([...bucket.items,i.id])]:bucket.items.filter(id=>id!==i.id)}else{i.notification={enabled,time};bucket.items=bucket.items.filter(id=>id!==i.id)}closeModals();changed();updateTodayButton();toast(enabled?"Notification saved":"Notification off")}
   const originalSaveEvent=$("#saveEvent").onclick;
   $("#saveEvent").onclick=async()=>{if($("#eventNotify").checked&&!await ensurePush())return;originalSaveEvent()};
-  $("#todayRemindersButton").onclick=showTodaySheet;$("#enableTodayReminders").onclick=enableToday;$("#clearTodayReminders").onclick=clearToday;
+  $("#todayRemindersButton").onclick=showTodaySheet;$("#enableTodayReminders").onclick=enableToday;$("#clearTodayReminders").onclick=clearToday;$("#enableNotificationsSettings").onclick=enableFromSettings;
   const previousRender=render;render=function(){previousRender();updateTodayButton()};
-  updateTodayButton();
+  window.OpalDayNotifications={updateSettings};updateTodayButton();updateSettings();
   if(localStorage.getItem(PUSH_KEY)==="true"&&"Notification"in window&&Notification.permission==="granted")setTimeout(()=>ensurePush(),1800);
 })();
