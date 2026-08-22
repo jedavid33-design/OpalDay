@@ -2,7 +2,7 @@ const STORAGE_KEY="opalday-data-v1",CODE_KEY="opalday-sync-code",DAY=86400000;
 const state={planner:normalize(load(STORAGE_KEY,{items:[],updatedAt:""})),syncCode:localStorage.getItem(CODE_KEY)||"",syncStatus:"Local only",saveTimer:null,view:"today",filter:"all",selectedId:null};
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],workerUrl=()=>(window.OPALDAY_CONFIG?.workerUrl||"").replace(/\/$/,"");
 function load(k,f){try{return JSON.parse(localStorage.getItem(k))||f}catch{return f}}
-function normalize(p){p||={items:[],updatedAt:""};p.items=(p.items||[]).map(i=>({target:1,cadence:"weekly",completions:[],subtasks:[],rescueReminder:true,...i,subtasks:(i.subtasks||[]).map(s=>({done:false,...s}))}));return p}
+function normalize(p){p||={items:[],updatedAt:""};p.items=(p.items||[]).map(i=>({target:1,cadence:"weekly",completions:[],subtasks:[],rescueReminder:true,...i,subtasks:(i.subtasks||[]).map(s=>({done:false,...s}))}));p.dayReminders=p.dayReminders||{};return p}
 function uid(){return crypto.randomUUID?.()||Date.now().toString(36)+Math.random().toString(36).slice(2)}
 function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
 function randomCode(){const c="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:8},()=>c[Math.floor(Math.random()*c.length)]).join("")}

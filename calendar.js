@@ -26,6 +26,7 @@
       if(state.planner.sports[sport.id]===undefined)state.planner.sports[sport.id]={enabled:true,lastRefresh:null,error:false};
       else if(typeof state.planner.sports[sport.id]==="boolean")state.planner.sports[sport.id]={enabled:state.planner.sports[sport.id],lastRefresh:null,error:false};
     }
+    state.planner.events.filter(e=>e.source==="sports"&&!e.userEdited).forEach(addSportsEnd);
   }
   ensureCalendarData();
   state.calView=localStorage.getItem("opalday-cal-view")||"timeline";
@@ -37,6 +38,7 @@
     localStorage.setItem("opalday-cal-overlays",JSON.stringify(state.calOverlays));localStorage.setItem("opalday-v06-calendar-defaults-final","done")
   }
   function dk(d){return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-")}
+  function addSportsEnd(event){if(!event.date||!event.time)return event;const start=new Date(event.date+"T"+event.time),finish=new Date(start.getTime()+3*60*60*1000);event.allDay=false;event.endDate=dk(finish);event.end=String(finish.getHours()).padStart(2,"0")+":"+String(finish.getMinutes()).padStart(2,"0");return event}
   function ws(d){const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x}
   function c(id){return state.planner.calendars.find(x=>x.id===id)||state.planner.calendars[0]}
   function fmt(t){return t?new Date("2000-01-01T"+t).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"All day"}
@@ -112,7 +114,7 @@
   }
   function range(){if(state.calView==="month")return state.calCursor.toLocaleDateString([],{month:"long",year:"numeric"});if(state.calView==="week"){const s=ws(state.calCursor),e=new Date(s.getTime()+6*DAY);return s.toLocaleDateString([],{month:"short",day:"numeric"})+"–"+e.toLocaleDateString([],{month:"short",day:"numeric"})}return state.calCursor.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}
   function eventDayLabel(e,d=state.calCursor){if(!e.endDate||e.endDate===e.date)return"";const key=dk(d),start=new Date(e.date+"T12:00"),current=new Date(key+"T12:00"),n=Math.round((current-start)/DAY)+1;if(key===e.date)return"Begins today";if(key===e.endDate)return"Ends today";return"Day "+n}
-  function chip(e){const color=entryColor(e),attr=e.source==="builtin"?"":e._system?' data-system="'+e.id+'"':' data-event="'+e.id+'"',onDate=e._system?new Date((e._date||dk(state.calCursor))+"T12:00"):state.calCursor,done=e._system&&itemComplete(e,onDate),continuation=e._system?"":eventDayLabel(e,onDate),label=e._system?(e.kind==="medication"?(done?"Taken":medState(e,onDate)==="overdue"?"OVERDUE · Hard deadline":"Hard medication deadline"):cadenceLabel(e)):escapeHtml(c(e.calendarId).name);return '<button class="event-chip kind-'+(e.kind||"event")+(done?" is-complete":"")+(continuation?' multi-day':'')+'"'+attr+' style="--event:'+color+'"><strong>'+escapeHtml(e.title)+'</strong><small>'+fmt(e.time)+' · '+(continuation?continuation+' · ':"")+label+'</small></button>'}
+  function chip(e){const color=entryColor(e),attr=e.source==="builtin"?"":e._system?' data-system="'+e.id+'"':' data-event="'+e.id+'"',onDate=e._system?new Date((e._date||dk(state.calCursor))+"T12:00"):state.calCursor,done=e._system&&itemComplete(e,onDate),continuation=e._system?"":eventDayLabel(e,onDate),label=e._system?(e.kind==="medication"?(done?"Taken":medState(e,onDate)==="overdue"?"OVERDUE · Hard deadline":"Hard medication deadline"):cadenceLabel(e)):escapeHtml(c(e.calendarId).name),timeLabel=e.end&&e.time?fmt(e.time)+"–"+fmt(e.end):fmt(e.time);return '<button class="event-chip kind-'+(e.kind||"event")+(done?" is-complete":"")+(continuation?' multi-day':'')+'"'+attr+' style="--event:'+color+'"><strong>'+escapeHtml(e.title)+'</strong><small>'+timeLabel+' · '+(continuation?continuation+' · ':"")+label+'</small></button>'}
   function day(){
     const ev=eventsOn(state.calCursor),systems=ev.filter(e=>e._system),scheduled=ev.filter(e=>!e._system),allDay=scheduled.filter(e=>!e.time),timed=scheduled.filter(e=>e.time);
     const systemTop=systems.length?'<div class="day-system-band"><small>HABITS & REMINDERS</small>'+systems.map(chip).join("")+'</div>':"";
@@ -147,7 +149,7 @@
       fresh.add(String(raw.uid));
       const old=state.planner.events.find(e=>e.source==="sports"&&e.sportId===id&&e.sportUid===String(raw.uid));
       if(old?.userEdited)return old;
-      return{id:old?.id||uid(),title:raw.title||"Game",date:dk(start),time:raw.allDay?null:String(start.getHours()).padStart(2,"0")+":"+String(start.getMinutes()).padStart(2,"0"),end:null,calendarId:calendar.id,source:"sports",sportId:id,sportUid:String(raw.uid),url:raw.url||null,status:raw.status||null,createdAt:old?.createdAt||new Date().toISOString()}
+      return addSportsEnd({id:old?.id||uid(),title:raw.title||"Game",date:dk(start),time:String(start.getHours()).padStart(2,"0")+":"+String(start.getMinutes()).padStart(2,"0"),end:null,calendarId:calendar.id,source:"sports",sportId:id,sportUid:String(raw.uid),url:raw.url||null,status:raw.status||null,createdAt:old?.createdAt||new Date().toISOString()})
     }).filter(Boolean);
     state.planner.events=state.planner.events.filter(e=>e.source!=="sports"||e.sportId!==id||e.userEdited||fresh.has(e.sportUid));
     for(const event of incoming){const n=state.planner.events.findIndex(e=>e.source==="sports"&&e.sportId===id&&e.sportUid===event.sportUid);if(n<0)state.planner.events.push(event);else state.planner.events[n]=event}
