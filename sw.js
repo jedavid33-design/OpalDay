@@ -1,5 +1,5 @@
-const CACHE = "opalday-v1.1.4";
-const ASSETS = ["./","./index.html","./styles.css","./calendar.css","./v04.css","./app.js","./calendar.js","./notifications.js","./config.js","./manifest.webmanifest","./app-icon.png"];
+const CACHE = "opalday-v1.2.0";
+const ASSETS = ["./","./index.html","./styles.css","./calendar.css","./v04.css","./app.js","./calendar.js","./notifications.js","./config.js","./manifest.webmanifest","./app-icon.png","./app-icon-180.png","./app-icon-192.png","./app-icon-512.png"];
 self.addEventListener("install", event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())));
 self.addEventListener("activate", event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));
 self.addEventListener("fetch", event => {
