@@ -1,9 +1,32 @@
-const STORAGE_KEY="opalday-data-v1",CODE_KEY="opalday-sync-code",DAY=86400000,OPALDAY_VERSION="1.1.3";
+const STORAGE_KEY="opalday-data-v1",CODE_KEY="opalday-sync-code",DAY=86400000,OPALDAY_VERSION="1.1.4";
 window.OPALDAY_VERSION=OPALDAY_VERSION;
 const state={planner:normalize(load(STORAGE_KEY,{items:[],updatedAt:""})),syncCode:localStorage.getItem(CODE_KEY)||"",syncStatus:"Local only",saveTimer:null,view:"today",filter:"all",selectedId:null,editItemId:null};
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],workerUrl=()=>(window.OPALDAY_CONFIG?.workerUrl||"").replace(/\/$/,"");
 function load(k,f){try{return JSON.parse(localStorage.getItem(k))||f}catch{return f}}
-function normalize(p){p||={items:[],updatedAt:""};p.items=(p.items||[]).map(i=>({target:1,cadence:"weekly",completions:[],subtasks:[],rescueReminder:true,...i,subtasks:(i.subtasks||[]).map(s=>({done:false,...s}))}));p.dayReminders=p.dayReminders||{};p.deletedItemIds=p.deletedItemIds||[];p.deletedEventIds=p.deletedEventIds||[];return p}
+function canonicalizeSportsCalendars(p){
+  const sports=[
+    {id:"astros",name:"Houston Astros",aliases:["astros","houston astros"]},
+    {id:"vgk",name:"Vegas Golden Knights",aliases:["vgk","golden knights","vegas golden knights"]},
+    {id:"pwhl-vegas",name:"PWHL Las Vegas",aliases:["pwhl las vegas","pwhl vegas"]},
+    {id:"boston-fleet",name:"Boston Fleet",aliases:["boston fleet"]},
+    {id:"wpbl",name:"WPBL",aliases:["wpbl","women’s pro baseball","womens pro baseball"]}
+  ];
+  p.calendars=p.calendars||[];p.events=p.events||[];
+  for(const sport of sports){
+    const candidates=p.calendars.filter(calendar=>calendar?.sportId===sport.id||sport.aliases.includes(String(calendar?.name||"").trim().toLowerCase()));
+    if(!candidates.length)continue;
+    const eventCount=calendar=>p.events.filter(event=>event?.calendarId===calendar.id).length;
+    candidates.sort((a,b)=>eventCount(b)-eventCount(a)||Number(String(b.name||"").trim().toLowerCase()===sport.name.toLowerCase())-Number(String(a.name||"").trim().toLowerCase()===sport.name.toLowerCase()));
+    const keep=candidates[0],duplicateIds=new Set(candidates.slice(1).map(calendar=>calendar.id));
+    keep.sportId=sport.id;keep.name=sport.name;keep.visible=candidates.some(calendar=>calendar.visible!==false);
+    for(const event of p.events){
+      if(duplicateIds.has(event.calendarId)||(event.source==="sports"&&event.sportId===sport.id))event.calendarId=keep.id;
+    }
+    if(duplicateIds.size)p.calendars=p.calendars.filter(calendar=>!duplicateIds.has(calendar.id));
+  }
+  return p;
+}
+function normalize(p){p||={items:[],updatedAt:""};p.items=(p.items||[]).map(i=>({target:1,cadence:"weekly",completions:[],subtasks:[],rescueReminder:true,...i,subtasks:(i.subtasks||[]).map(s=>({done:false,...s}))}));p.dayReminders=p.dayReminders||{};p.deletedItemIds=p.deletedItemIds||[];p.deletedEventIds=p.deletedEventIds||[];return canonicalizeSportsCalendars(p)}
 function uid(){return crypto.randomUUID?.()||Date.now().toString(36)+Math.random().toString(36).slice(2)}
 function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
 function randomCode(){const c="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:8},()=>c[Math.floor(Math.random()*c.length)]).join("")}
