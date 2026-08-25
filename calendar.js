@@ -48,6 +48,7 @@
   function dateDiff(a,b){return Math.round((new Date(a+"T12:00")-new Date(b+"T12:00"))/DAY)}
   function recurrenceStartsOn(e,key){if(!e.date||key<e.date||e.recurrenceUntil&&key>e.recurrenceUntil)return false;const diff=dateDiff(key,e.date);if(e.calendarId==="birthdays"||e.recurrence==="yearly")return key.slice(5)===e.date.slice(5);if(e.recurrence==="daily")return true;if(e.recurrence==="weekly")return diff%7===0;if(e.recurrence==="monthly")return new Date(key+"T12:00").getDate()===new Date(e.date+"T12:00").getDate();return key===e.date}
   function occurrenceStart(e,key){const span=e.endDate?Math.max(0,dateDiff(e.endDate,e.date)):0;for(let back=0;back<=span;back++){const candidate=plusDays(key,-back);if(recurrenceStartsOn(e,candidate))return candidate}return null}
+  function isRepeatingEvent(e){return e.calendarId==="birthdays"||["daily","weekly","monthly","yearly"].includes(e.recurrence)}
   function c(id){return state.planner.calendars.find(x=>x.id===id)||state.planner.calendars[0]}
   function fmt(t){return t?new Date("2000-01-01T"+t).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"All day"}
   function nthWeekday(year,month,weekday,n){const d=new Date(year,month,1);d.setDate(1+((weekday-d.getDay()+7)%7)+(n-1)*7);return d}
@@ -89,7 +90,11 @@
   function eventsOn(d){
     const builtin=state.calOverlays.events&&c("holidays").visible!==false?usHolidays(d.getFullYear()).filter(e=>e.date===dk(d)):[];
     const key=dk(d);
-    const events=state.calOverlays.events?state.planner.events.map(e=>({event:e,start:occurrenceStart(e,key)})).filter(x=>x.start&&c(x.event.calendarId).visible!==false).map(x=>x.start===x.event.date&&key===x.event.date?x.event:{...x.event,_displayDate:key,_occurrenceStart:x.start}).concat(builtin):[];
+    const events=state.calOverlays.events?state.planner.events.map(e=>{
+      if(c(e.calendarId).visible===false)return null;
+      if(!isRepeatingEvent(e))return(e.date===key||!!(e.endDate&&key>=e.date&&key<=e.endDate))?{event:e,start:e.date}:null;
+      const start=occurrenceStart(e,key);return start?{event:e,start}:null
+    }).filter(Boolean).map(x=>x.start===x.event.date&&key===x.event.date?x.event:{...x.event,_displayDate:key,_occurrenceStart:x.start}).concat(builtin):[];
     const systems=state.planner.items.filter(i=>systemOn(i,d)).map(i=>Object.assign({},i,{_system:true,_date:dk(d),time:i.fixedTime}));
     return events.concat(systems).sort((a,b)=>{const pa=a.kind==="medication"&&medState(a,d)==="overdue"?0:a.kind==="medication"?1:2,pb=b.kind==="medication"&&medState(b,d)==="overdue"?0:b.kind==="medication"?1:2;return pa-pb||(a.time||"99").localeCompare(b.time||"99")})
   }
@@ -194,7 +199,7 @@
   $("#eventAllDay").onchange=toggleEventTimes;
   $("#eventRecurrence").onchange=toggleRecurrenceUntil;
   $("#saveEvent").onclick=()=>{const title=$("#eventTitle").value.trim(),start=$("#eventDate").value,end=$("#eventEndDate").value||start,until=$("#eventRecurrenceUntil").value||null;if(!title)return toast("Name the event");if(end<start)return toast("End date must follow start date");if(until&&until<start)return toast("Repeat-until date must follow the start");let e=state.editEvent?state.planner.events.find(x=>x.id===state.editEvent):null;if(!e){e={id:uid(),createdAt:new Date().toISOString(),source:"manual"};state.planner.events.push(e)}e.title=title;e.date=start;e.endDate=end;e.allDay=$("#eventAllDay").checked;e.time=e.allDay?null:$("#eventTime").value||null;e.end=e.allDay?null:$("#eventEnd").value||null;e.calendarId=$("#eventCalendar").value;e.recurrence=e.calendarId==="birthdays"?"yearly":($("#eventRecurrence").value||null);e.recurrenceUntil=e.recurrence?until:null;const scope=$("#eventNotifyScope").value;e.notification={enabled:$("#eventNotify").checked,time:readTimeWheel("eventNotify"),leadMinutes:null,days:$("#eventNotifyDays").value,scope,occurrenceDate:scope==="once"?(state.view==="today"?dk(new Date()):dk(state.calCursor)):null};if(state.editEvent)e.userEdited=true;state.editEvent=null;closeModals();calendarChanged();toast(e.recurrence?"Repeating event saved":end>start?"Multi-day event saved":"Event saved")};
-  $("#deleteEvent").onclick=()=>{const e=state.planner.events.find(x=>x.id===state.editEvent);if(!e)return;if(e.feedUid)state.planner.deletedFeedUids.push(e.feedUid);state.planner.events=state.planner.events.filter(x=>x.id!==e.id);state.editEvent=null;closeModals();calendarChanged();toast("Event deleted")};
+  $("#deleteEvent").onclick=()=>{const e=state.planner.events.find(x=>x.id===state.editEvent);if(!e)return;if(e.feedUid)state.planner.deletedFeedUids.push(e.feedUid);state.planner.deletedEventIds=[...new Set([...(state.planner.deletedEventIds||[]),e.id])];state.planner.events=state.planner.events.filter(x=>x.id!==e.id);state.editEvent=null;closeModals();calendarChanged();toast("Event deleted")};
   $("#saveCalendar").onclick=()=>{const name=$("#calendarName").value.trim();if(!name)return toast("Name the calendar");if(state.editCalendar){const x=c(state.editCalendar);x.name=name;x.color=$("#calendarColor").value}else state.planner.calendars.push({id:uid(),name,color:$("#calendarColor").value,visible:true});state.editCalendar=null;closeModals();calendarChanged()};
   $("#icalFile").onchange=async e=>{const file=e.target.files[0];if(!file)return;const cid=$("#icalCalendar").value;merge(parseICS(await file.text(),cid,null),cid,null);toast("iCal imported")};
   $("#refreshSports").onclick=()=>refreshSports();
