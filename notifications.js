@@ -37,6 +37,8 @@
   }
   async function enableFromSettings(){if(await ensurePush()){updateSettings();toast("Notifications are ready")}}
   function updateTodayButton(){const button=$("#todayRemindersButton");if(!button)return;const bucket=reminderStore()[todayKey()],count=(bucket?.items?.length||0)+(bucket?.events?.length||0)+(bucket?.custom?.length||0);button.classList.toggle("active",count>0);button.querySelector("strong").textContent=count?count+" reminder"+(count===1?"":"s")+" set for today":"Set reminders for today";button.querySelector("small").textContent=count?"Tap to review or clear them.":"Notifications are off until you choose them."}
+  let foregroundTimer;
+  function showForegroundNotification(data={}){const banner=$("#foregroundNotification");if(!banner)return;$("#foregroundNotificationTitle").textContent=data.title||"OpalDay reminder";$("#foregroundNotificationBody").textContent=data.body||"You have something coming up.";banner.classList.remove("hidden");clearTimeout(foregroundTimer);foregroundTimer=setTimeout(()=>banner.classList.add("hidden"),9000)}
   function showTodaySheet(){const entries=todayEntries().all,bucket=reminderStore()[todayKey()]||{items:[],events:[],custom:[]};$("#todayReminderList").innerHTML=entries.length?entries.map(x=>'<div class="today-reminder-row"><span><strong>'+escapeHtml(x.title)+'</strong><small>'+escapeHtml(x.kind)+'</small></span><b>'+prettyTime(x.time)+'</b></div>').join(""):'<div class="small-empty">Nothing needs a reminder today.</div>';$("#enableTodayReminders").disabled=!entries.length;$("#clearTodayReminders").disabled=!((bucket.items||[]).length||(bucket.events||[]).length||(bucket.custom||[]).length);openModal("#todayRemindersModal")}
   async function enableToday(){const entries=todayEntries();if(!entries.all.length)return;if(!await ensurePush())return;const bucket=dayBucket();bucket.items=[...new Set(entries.items.filter(i=>!i.notification?.enabled).map(x=>x.id))];bucket.events=[...new Set(entries.events.filter(e=>e.source!=="builtin"&&!e.notification?.enabled).map(x=>x.id))];bucket.custom=entries.events.filter(e=>e.source==="builtin").map(e=>({id:e.id,title:e.title,time:reminderTime(e)}));closeModals();changed();updateTodayButton();toast("Today’s reminders are on")}
   function clearToday(){delete reminderStore()[todayKey()];closeModals();changed();updateTodayButton();toast("Today’s reminders cleared")}
@@ -47,7 +49,9 @@
   const originalSaveEvent=$("#saveEvent").onclick;
   $("#saveEvent").onclick=async()=>{if($("#eventNotify").checked&&!await ensurePush())return;originalSaveEvent()};
   $("#todayRemindersButton").onclick=showTodaySheet;$("#enableTodayReminders").onclick=enableToday;$("#clearTodayReminders").onclick=clearToday;$("#enableNotificationsSettings").onclick=enableFromSettings;
+  $("#foregroundNotification").onclick=()=>$("#foregroundNotification").classList.add("hidden");
+  if("serviceWorker"in navigator)navigator.serviceWorker.addEventListener("message",event=>{if(event.data?.type==="OPALDAY_FOREGROUND_NOTIFICATION")showForegroundNotification(event.data.data)});
   const previousRender=render;render=function(){previousRender();updateTodayButton()};
-  window.OpalDayNotifications={updateSettings};updateTodayButton();updateSettings();
+  window.OpalDayNotifications={updateSettings,showForegroundNotification};updateTodayButton();updateSettings();
   if(localStorage.getItem(PUSH_KEY)==="true"&&"Notification"in window&&Notification.permission==="granted")setTimeout(()=>ensurePush(),1800);
 })();

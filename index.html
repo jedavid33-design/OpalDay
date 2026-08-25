@@ -44,7 +44,7 @@
     <section class="view hidden" id="progressView">
       <p class="eyebrow">Gentle progress</p><h2>Your rhythm</h2>
       <div class="stats-grid" id="statsGrid"></div>
-      <div class="week-card"><div class="section-heading"><div><p class="eyebrow">Monday–Sunday</p><h2>This week</h2></div><strong id="weekPercent">0%</strong></div><div class="week-bars" id="weekBars"></div></div>
+      <div class="week-card"><div class="section-heading"><div><p class="eyebrow">Sunday–Saturday</p><h2>This week</h2></div><strong id="weekPercent">0%</strong></div><div class="week-bars" id="weekBars"></div></div>
       <div class="month-card"><p class="eyebrow">Room reset</p><h2>Monthly systems</h2><div id="monthlyList"></div></div>
     </section>
 
@@ -69,7 +69,7 @@
 
   <div class="modal-backdrop hidden" id="addModal">
     <section class="modal-sheet">
-      <div class="sheet-handle"></div><p class="eyebrow">Add anything</p><h2>What do you want to track?</h2>
+      <div class="sheet-handle"></div><p class="eyebrow" id="itemFormEyebrow">Add anything</p><h2 id="itemFormTitle">What do you want to track?</h2>
       <p class="modal-note">Write naturally. Add subtasks after a colon, separated by commas.</p>
       <form id="addForm">
         <textarea id="naturalEntry" placeholder="Organize my closet once a month: hanging clothes, shoes, top shelf"></textarea>
@@ -107,6 +107,10 @@
         <div class="settings-card-copy"><span class="settings-icon">↻</span><span><strong>Device sync</strong><small id="settingsSyncStatus">Keep your devices together</small></span></div>
         <button class="secondary full" id="openSyncSettings">View sync settings</button>
       </div>
+      <div class="settings-card">
+        <div class="settings-card-copy"><span class="settings-icon">✦</span><span><strong>About</strong><small>Version and app details</small></span></div>
+        <button class="secondary full" id="openAboutSettings">About OpalDay</button>
+      </div>
       <button class="text-button" data-close>Done</button>
     </section>
   </div>
@@ -116,15 +120,18 @@
       <div class="sheet-handle"></div><p class="eyebrow">System details</p><h2 id="itemModalTitle"></h2>
       <div id="itemModalBody"></div>
       <div class="medication-actions hidden" id="medicationActions"><button class="primary" id="medTaken">Taken</button><button class="secondary" id="medSnooze">Snooze 30m</button><button class="secondary" id="medReschedule">Reschedule</button></div>
-      <div class="modal-actions"><button class="secondary" data-close>Close</button><button class="danger" id="deleteItem">Delete</button></div>
+      <div class="modal-actions three"><button class="secondary" data-close>Close</button><button class="secondary" id="editItem">Edit</button><button class="danger" id="deleteItem">Delete</button></div>
     </section>
   </div>
-  <div class="modal-backdrop hidden" id="eventModal"><section class="modal-sheet"><div class="sheet-handle"></div><p class="eyebrow">Calendar event</p><h2 id="eventModalTitle">Add event</h2><label class="field">Title<input id="eventTitle"></label><div class="schedule-editor"><label>Calendar<select id="eventCalendar"></select></label><label class="check-field"><input id="eventAllDay" type="checkbox"> All day</label><label>Start date<input id="eventDate" type="date"></label><label>End date<input id="eventEndDate" type="date"></label><label class="event-time-field">Start time<input id="eventTime" type="time"></label><label class="event-time-field">End time<input id="eventEnd" type="time"></label></div><div class="notification-editor"><div><strong>Notification</strong><span>Off unless you enable it</span></div><label class="switch-row"><input id="eventNotify" type="checkbox"> Remind me</label><div class="notification-wheel-field"><span>Reminder time</span><div class="time-wheel" data-time-wheel="eventNotify"><label>Hour<select id="eventNotifyHour" aria-label="Reminder hour"></select></label><b>:</b><label>Minute<select id="eventNotifyMinute" aria-label="Reminder minute"></select></label><label>Period<select id="eventNotifyPeriod" aria-label="AM or PM"><option>AM</option><option>PM</option></select></label></div><small>Choose an exact time in five-minute steps.</small></div><label>Apply to<select id="eventNotifyScope"><option value="every">Every occurrence</option><option value="once">This occurrence only</option></select></label><label>For multi-day events<select id="eventNotifyDays"><option value="start">When it begins</option><option value="daily">Every day</option></select></label></div><div class="modal-actions three"><button class="danger hidden" id="deleteEvent">Delete</button><button class="secondary" data-close>Cancel</button><button class="primary" id="saveEvent">Save</button></div></section></div>
+  <div class="modal-backdrop hidden" id="eventModal"><section class="modal-sheet"><div class="sheet-handle"></div><p class="eyebrow">Calendar event</p><h2 id="eventModalTitle">Add event</h2><label class="field">Title<input id="eventTitle"></label><div class="schedule-editor"><label>Calendar<select id="eventCalendar"></select></label><label class="check-field"><input id="eventAllDay" type="checkbox"> All day</label><label>Start date<input id="eventDate" type="date"></label><label>End date<input id="eventEndDate" type="date"></label><label class="event-time-field">Start time<input id="eventTime" type="time" step="300"></label><label class="event-time-field">End time<input id="eventEnd" type="time" step="300"></label><label>Repeat<select id="eventRecurrence"><option value="">Does not repeat</option><option value="daily">Every day</option><option value="weekly">Every week</option><option value="monthly">Every month</option><option value="yearly">Every year</option></select></label><label id="eventRecurrenceUntilField" class="hidden">Repeat until (optional)<input id="eventRecurrenceUntil" type="date"></label></div><div class="notification-editor"><div><strong>Notification</strong><span>Off unless you enable it</span></div><label class="switch-row"><input id="eventNotify" type="checkbox"> Remind me</label><div class="notification-wheel-field"><span>Reminder time</span><div class="time-wheel" data-time-wheel="eventNotify"><label>Hour<select id="eventNotifyHour" aria-label="Reminder hour"></select></label><b>:</b><label>Minute<select id="eventNotifyMinute" aria-label="Reminder minute"></select></label><label>Period<select id="eventNotifyPeriod" aria-label="AM or PM"><option>AM</option><option>PM</option></select></label></div><small>Choose an exact time in five-minute steps.</small></div><label>Apply to<select id="eventNotifyScope"><option value="every">Every occurrence</option><option value="once">This occurrence only</option></select></label><label>For multi-day events<select id="eventNotifyDays"><option value="start">When it begins</option><option value="daily">Every day</option></select></label></div><div class="modal-actions three"><button class="danger hidden" id="deleteEvent">Delete</button><button class="secondary" data-close>Cancel</button><button class="primary" id="saveEvent">Save</button></div></section></div>
   <div class="modal-backdrop hidden" id="calendarEditModal"><section class="modal-sheet"><div class="sheet-handle"></div><p class="eyebrow">Calendar</p><h2 id="calendarEditTitle">New calendar</h2><label class="field">Name<input id="calendarName"></label><label class="field">Color<input id="calendarColor" type="color" value="#7f3659"></label><div class="modal-actions"><button class="secondary" data-close>Cancel</button><button class="primary" id="saveCalendar">Save calendar</button></div></section></div>
   <div class="modal-backdrop hidden" id="calendarJumpModal"><section class="modal-sheet"><div class="sheet-handle"></div><p class="eyebrow">Jump through time</p><h2>Choose a month</h2><div class="calendar-jump-wheel"><label>Month<select id="jumpMonth"></select></label><label>Year<select id="jumpYear"></select></label></div><div class="modal-actions"><button class="secondary" data-close>Cancel</button><button class="primary" id="jumpToMonth">Go</button></div></section></div>
   <div class="modal-backdrop hidden" id="todayRemindersModal"><section class="modal-sheet"><div class="sheet-handle"></div><p class="eyebrow">Today’s notifications</p><h2>Remind me today</h2><p class="modal-note">Timed items use their scheduled time. Anything untimed defaults to noon.</p><div class="today-reminder-list" id="todayReminderList"></div><div class="modal-actions"><button class="secondary" id="clearTodayReminders">Clear today</button><button class="primary" id="enableTodayReminders">Set all reminders</button></div><button class="text-button" data-close>Cancel</button></section></div>
 
+  <div class="modal-backdrop hidden" id="aboutModal"><section class="modal-sheet compact-sheet"><div class="sheet-handle"></div><p class="eyebrow">About</p><h2>OpalDay</h2><div class="about-mark">✦</div><p class="about-version">Version <strong id="aboutVersion">1.1.0</strong></p><p class="modal-note">Your routines, medications, and calendar—gently organized in one opalescent place.</p><button class="text-button" data-close>Done</button></section></div>
+
   <div class="toast hidden" id="toast"></div>
+  <button class="foreground-notification hidden" id="foregroundNotification" aria-live="assertive"><span class="foreground-notification-icon">✦</span><span><strong id="foregroundNotificationTitle">OpalDay reminder</strong><small id="foregroundNotificationBody"></small></span></button>
   <script src="./config.js"></script>
   <script src="./app.js"></script>
   <script src="./calendar.js"></script>

@@ -1,0 +1,21 @@
+OpalDay v1.1.0 combined update
+
+GITHUB PAGES
+Upload the files at the top level of this package to the root of the OpalDay
+repository, replacing files with the same names. Keep the folder named
+cloudflare-worker-v0.9.0 in the repository as a reference folder; GitHub Pages
+will ignore it.
+
+CLOUDFLARE WORKER
+Open cloudflare-worker-v0.9.0/worker.js, copy the entire file, and replace the
+Worker code in Cloudflare. Deploy it. No SQL migration is required for v0.9.0.
+
+VERIFY
+1. The Worker /health URL should report version 0.9.0 and recurringEvents true.
+2. The app Settings > About screen should report version 1.1.0.
+3. If the Home Screen app holds the old cache, close it completely and reopen it.
+   The v1.1.0 service worker uses a new cache name and claims the app immediately.
+
+ICON NOTE
+The included app-icon.png is refreshed. iOS may keep an installed Home Screen
+icon until the app is removed from the Home Screen and added again.
