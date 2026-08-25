@@ -26,7 +26,7 @@
       if(state.planner.sports[sport.id]===undefined)state.planner.sports[sport.id]={enabled:true,lastRefresh:null,error:false};
       else if(typeof state.planner.sports[sport.id]==="boolean")state.planner.sports[sport.id]={enabled:state.planner.sports[sport.id],lastRefresh:null,error:false};
     }
-    state.planner.events.filter(e=>e.source==="sports"&&!e.userEdited).forEach(addSportsEnd);
+    state.planner.events.filter(e=>e.source==="sports").forEach(addSportsEnd);
   }
   ensureCalendarData();
   state.calView=localStorage.getItem("opalday-cal-view")||"timeline";
