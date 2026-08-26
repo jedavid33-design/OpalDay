@@ -115,12 +115,12 @@
   function entryColor(e){return e._system?(e.kind==="medication"?"#a7354f":e.kind==="reset"?"#4e9f99":"#8b6bb5"):c(e.calendarId).color}
   function eventsOn(d){
     const builtin=state.calOverlays.events&&c("holidays").visible!==false?usHolidays(d.getFullYear()).filter(e=>e.date===dk(d)):[];
-    const key=dk(d);
+    const key=dk(d),dismissed=new Set(state.planner.dismissedAllDayOccurrences||[]);
     const events=state.calOverlays.events?state.planner.events.map(e=>{
       if(c(e.calendarId).visible===false)return null;
       if(!isRepeatingEvent(e))return(e.date===key||!!(e.endDate&&key>=e.date&&key<=e.endDate))?{event:e,start:e.date}:null;
       const start=occurrenceStart(e,key);return start?{event:e,start}:null
-    }).filter(Boolean).map(x=>x.start===x.event.date&&key===x.event.date?x.event:{...x.event,_displayDate:key,_occurrenceStart:x.start}).concat(builtin):[];
+    }).filter(Boolean).map(x=>x.start===x.event.date&&key===x.event.date?x.event:{...x.event,_displayDate:key,_occurrenceStart:x.start}).concat(builtin).filter(e=>e.time||!dismissed.has(dismissalKey(e))):[];
     const systems=state.planner.items.filter(i=>systemOn(i,d)).map(i=>Object.assign({},i,{_system:true,_date:dk(d),time:i.fixedTime}));
     return events.concat(systems).sort((a,b)=>{const pa=a.kind==="medication"&&medState(a,d)==="overdue"?0:a.kind==="medication"?1:2,pb=b.kind==="medication"&&medState(b,d)==="overdue"?0:b.kind==="medication"?1:2;return pa-pb||(a.time||"99").localeCompare(b.time||"99")})
   }
@@ -231,7 +231,8 @@
   $("#saveCalendar").onclick=()=>{const name=$("#calendarName").value.trim();if(!name)return toast("Name the calendar");if(state.editCalendar){const x=c(state.editCalendar);x.name=name;x.color=$("#calendarColor").value}else state.planner.calendars.push({id:uid(),name,color:$("#calendarColor").value,visible:true});state.editCalendar=null;closeModals();calendarChanged()};
   $("#icalFile").onchange=async e=>{const file=e.target.files[0];if(!file)return;const cid=$("#icalCalendar").value;merge(parseICS(await file.text(),cid,null),cid,null);toast("iCal imported")};
   $("#refreshSports").onclick=()=>refreshSports();
-  window.OpalDayCalendar={todayEvents:()=>eventsOn(new Date()).filter(e=>!e._system),eventsForDate:d=>eventsOn(d).filter(e=>!e._system),color:entryColor,calendarName:id=>c(id).name,eventDayLabel,openEvent};
+  function dismissalKey(e){return String(e.id||"")+"@"+(e._occurrenceStart||e.date||dk(new Date()))}
+  window.OpalDayCalendar={todayEvents:()=>eventsOn(new Date()).filter(e=>!e._system),eventsForDate:d=>eventsOn(d).filter(e=>!e._system),color:entryColor,calendarName:id=>c(id).name,eventDayLabel,dismissalKey,openEvent};
   setTimeout(()=>{if(SPORTS.some(s=>{const x=state.planner.sports[s.id];return x.enabled&&(!x.lastRefresh||Date.now()-new Date(x.lastRefresh)>DAY)})&&workerUrl())refreshSports()},2200);
   setInterval(updateCurrentTimeLine,60000);
   render();

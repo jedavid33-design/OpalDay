@@ -1,4 +1,4 @@
-OpalDay v1.2.0 — comprehensive recurrence and editing update
+OpalDay v1.3.0 + Cloudflare Worker v0.12.0 — Widget + Typography
 
 DATA SAFETY
 This release keeps the existing local-storage key (opalday-data-v1), sync-code
@@ -6,35 +6,36 @@ key, Cloudflare D1 database, sync endpoint, calendar IDs, item IDs, event IDs,
 completion history, reminder settings, visibility settings, and deletion
 tombstones unchanged.
 
-Existing event recurrence fields remain supported. New recurrence details are
-stored alongside the legacy recurrence value, so this is a forward-compatible
-extension rather than a destructive data rewrite.
+The only new planner field is dismissedAllDayOccurrences. It stores small,
+per-occurrence dismissal markers and is union-merged across devices. Dismissing
+an all-day event does not delete or modify the underlying calendar event.
 
 GITHUB PAGES
-Upload all files from this BUILD_OpalDay_v1.2.0 folder to the root of the
-OpalDay repository, replacing files with the same names. The package is
-complete: it includes the base styles, calendar styles, config, manifest,
-service worker, scripts, and all icon sizes.
-
-Keep cloudflare-worker-v0.10.0 as a reference folder. GitHub Pages will not use
-the Worker file directly.
+Upload all top-level app files to the root of the OpalDay repository, replacing
+files with the same names. Keep cloudflare-worker-v0.12.0 as a reference folder;
+GitHub Pages does not use that folder directly.
 
 CLOUDFLARE WORKER
-Open cloudflare-worker-v0.10.0/worker.js, copy the entire file, replace the
-current Cloudflare Worker code, and deploy it. This update teaches scheduled
-notifications the same custom recurrence and occurrence-count rules as the app.
+Open cloudflare-worker-v0.12.0/worker.js, copy the entire file, replace the
+current Cloudflare Worker code, and deploy it. Keep the current D1 binding,
+database, cron trigger, routes, VAPID configuration, and secrets unchanged.
 
 No SQL migration is required. Do not recreate or replace the D1 database.
 
 VERIFY
-1. The Worker /health URL reports version 0.10.0 and recurringEvents "advanced".
-2. Settings > About reports app version 1.2.0.
-3. Create a harmless test event using Custom > every 2 weeks and verify the
-   selected Sunday-first weekday controls and ending options.
-4. Edit the test event and confirm it updates in place, then delete it.
+1. Settings > About reports app version 1.3.0.
+2. The Worker /health URL reports version 0.12.0 and widgetSchema 2.
+3. Open the private /widget/today URL and confirm its date/timezone.
+4. Confirm timedFeed is chronological and every item has startTimeLabel.
+5. Clear one all-day event with its × button and confirm the calendar event
+   remains stored while it disappears from Today and the widget feed.
+
+TYPOGRAPHY
+The app uses Avenir Next Medium for titles, names, headings, and important UI;
+Avenir Next Regular is used for times, dates, labels, and supporting copy.
+Names use fixed role sizes and wrap instead of dynamically shrinking.
 
 ICON NOTE
-The finalized supplied icon is included as 1024, 512, 192, and 180 px PNGs and
-referenced by the manifest, browser icon, Apple touch icon, service worker, and
-notification icon. iOS may retain an older Home Screen icon until OpalDay is
-removed from the Home Screen and added again.
+The existing finalized OpalDay icon remains included at 1024, 512, 192, and
+180 px and is still referenced by the manifest, Apple touch icon, service
+worker, and notification icon.
