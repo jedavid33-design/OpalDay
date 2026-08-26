@@ -1,4 +1,4 @@
-const STORAGE_KEY="opalday-data-v1",CODE_KEY="opalday-sync-code",DAY=86400000,OPALDAY_VERSION="1.3.0";
+const STORAGE_KEY="opalday-data-v1",CODE_KEY="opalday-sync-code",DAY=86400000,OPALDAY_VERSION="1.3.1";
 window.OPALDAY_VERSION=OPALDAY_VERSION;
 const state={planner:normalize(load(STORAGE_KEY,{items:[],updatedAt:""})),syncCode:localStorage.getItem(CODE_KEY)||"",syncStatus:"Local only",saveTimer:null,view:"today",filter:"all",selectedId:null,editItemId:null};
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],workerUrl=()=>(window.OPALDAY_CONFIG?.workerUrl||"").replace(/\/$/,"");

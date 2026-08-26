@@ -7,20 +7,17 @@ medications, reminders, progress, and a resolved daily timeline.
 
 ## This release
 
-App version: **1.3.0**  
-Cloudflare Worker version: **0.12.0**
+App version: **1.3.1**  
+Cloudflare Worker version: **0.12.1**
 
-- Avenir Next typography shared with the OpalDay Widgy design
-- Resolved chronological `timedFeed` at `/widget/today`
-- Display-ready `startTimeLabel` values in the requested timezone
-- Automatic removal of finished timed events
-- Persistent overdue medications until marked taken
-- Non-destructive dismissal of all-day occurrences
-- Due/incomplete Habits feed
-- Deterministic local-date daily quote
+- Compact real-item-only Widgy arrays with live counts and footer stats
+- Verified chronological timed medication behavior
+- Existing all-day dismissal behavior preserved
+- iPad-only header safe zone for system window controls
+- Completed Avenir Next Medium/Regular role audit
 
 See `UPLOAD-INSTRUCTIONS.txt` for deployment and verification. The Worker is
-included in `cloudflare-worker-v0.12.0/`.
+included in `cloudflare-worker-v0.12.1/`.
 
 ## Data safety
 
