@@ -7,17 +7,16 @@ medications, reminders, progress, and a resolved daily timeline.
 
 ## This release
 
-App version: **1.3.1**  
-Cloudflare Worker version: **0.12.1**
+App version: **1.3.2**  
+Cloudflare Worker version: **0.12.3**
 
-- Compact real-item-only Widgy arrays with live counts and footer stats
-- Verified chronological timed medication behavior
-- Existing all-day dismissal behavior preserved
-- iPad-only header safe zone for system window controls
-- Completed Avenir Next Medium/Regular role audit
+- Expired timed events leave Today after their explicit end or a one-hour fallback
+- Daily incomplete habits receive priority in the fixed Widgy habit slots
+- Empty streak labels use the ASCII-safe hyphen required by Widgy
+- Existing calendar views, storage, recurrence, sync, and widget arrays are preserved
 
 See `UPLOAD-INSTRUCTIONS.txt` for deployment and verification. The Worker is
-included in `cloudflare-worker-v0.12.1/`.
+included in `cloudflare-worker-v0.12.3/`.
 
 ## Data safety
 

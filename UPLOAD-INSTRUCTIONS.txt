@@ -1,4 +1,4 @@
-OpalDay v1.3.1 + Cloudflare Worker v0.12.1 — Widget + iPad cleanup
+OpalDay v1.3.2 + Cloudflare Worker v0.12.3 — Today relevance + Widgy cleanup
 
 DATA SAFETY
 This release keeps the existing local-storage key (opalday-data-v1), sync-code
@@ -8,24 +8,23 @@ all-day dismissal markers, and deletion tombstones unchanged.
 
 GITHUB PAGES
 Upload all top-level app files to the root of the OpalDay repository, replacing
-files with the same names. Keep cloudflare-worker-v0.12.1 as a reference folder;
+files with the same names. Keep cloudflare-worker-v0.12.3 as a reference folder;
 GitHub Pages does not use that folder directly.
 
 CLOUDFLARE WORKER
-Open cloudflare-worker-v0.12.1/worker.js, copy the entire file, replace the
+Open cloudflare-worker-v0.12.3/worker.js, copy the entire file, replace the
 current Cloudflare Worker code, and deploy it. Keep the current D1 binding,
 database, cron trigger, routes, VAPID configuration, and secrets unchanged.
 
 No SQL migration is required. Do not recreate or replace the D1 database.
 
 VERIFY
-1. Settings > About reports app version 1.3.1.
-2. The Worker /health URL reports version 0.12.1 and widgetSlots "compact".
-3. In /widget/today, widget.events contains at most three real items and
-   widget.habits contains at most two real items, with no placeholder strings.
-4. stats.events and stats.habits match the visible widget data.
-5. stats.streak is null because the current app does not store an actual streak.
-6. On iPad, the date and Today heading clear the top window controls.
+1. Settings > About reports app version 1.3.2.
+2. The Worker /health URL reports version 0.12.3 and widgetSlots "display-safe".
+3. Expired timed events are absent from Today; all-day and future events remain.
+4. widgetSlots.habits prioritizes incomplete daily habits and keeps blank slots.
+5. stats.streak remains null and stats.streakLabel is the ASCII-safe value "-".
+6. stats.events and stats.habits retain their live values.
 
 TYPOGRAPHY
 The app uses Avenir Next Medium for titles, names, headings, and important UI;

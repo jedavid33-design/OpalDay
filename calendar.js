@@ -124,6 +124,17 @@
     const systems=state.planner.items.filter(i=>systemOn(i,d)).map(i=>Object.assign({},i,{_system:true,_date:dk(d),time:i.fixedTime}));
     return events.concat(systems).sort((a,b)=>{const pa=a.kind==="medication"&&medState(a,d)==="overdue"?0:a.kind==="medication"?1:2,pb=b.kind==="medication"&&medState(b,d)==="overdue"?0:b.kind==="medication"?1:2;return pa-pb||(a.time||"99").localeCompare(b.time||"99")})
   }
+  function todayEventRelevant(e,now=new Date()){
+    if(e.allDay||!e.time)return true;
+    const occurrenceStart=e._occurrenceStart||e.date||dk(now),start=new Date(occurrenceStart+"T"+e.time);
+    let finish;
+    if(e.end){
+      const span=e.endDate?Math.max(0,dateDiff(e.endDate,e.date)):0,occurrenceEnd=plusDays(occurrenceStart,span);
+      finish=new Date(occurrenceEnd+"T"+e.end);
+      if(occurrenceEnd===occurrenceStart&&finish<=start)finish=new Date(finish.getTime()+DAY)
+    }else finish=new Date(start.getTime()+60*60*1000);
+    return now<finish
+  }
   function flexibleBand(){
     const items=state.planner.items.filter(i=>["habit","reset"].includes(i.kind)&&i.cadence==="weekly"&&i.fixedDay===null&&state.calOverlays[overlayKey(i)]&&(state.calOverlays.completed||!complete(i)));
     return items.length?'<div class="goal-band"><small>ANYTIME THIS WEEK</small>'+items.map(i=>'<button data-system="'+i.id+'">'+escapeHtml(i.title)+'<span>'+periodCount(i)+'/'+target(i)+'</span></button>').join("")+'</div>':""
@@ -232,8 +243,8 @@
   $("#icalFile").onchange=async e=>{const file=e.target.files[0];if(!file)return;const cid=$("#icalCalendar").value;merge(parseICS(await file.text(),cid,null),cid,null);toast("iCal imported")};
   $("#refreshSports").onclick=()=>refreshSports();
   function dismissalKey(e){return String(e.id||"")+"@"+(e._occurrenceStart||e.date||dk(new Date()))}
-  window.OpalDayCalendar={todayEvents:()=>eventsOn(new Date()).filter(e=>!e._system),eventsForDate:d=>eventsOn(d).filter(e=>!e._system),color:entryColor,calendarName:id=>c(id).name,eventDayLabel,dismissalKey,openEvent};
+  window.OpalDayCalendar={todayEvents:()=>{const now=new Date();return eventsOn(now).filter(e=>!e._system&&todayEventRelevant(e,now))},eventsForDate:d=>eventsOn(d).filter(e=>!e._system),color:entryColor,calendarName:id=>c(id).name,eventDayLabel,dismissalKey,openEvent};
   setTimeout(()=>{if(SPORTS.some(s=>{const x=state.planner.sports[s.id];return x.enabled&&(!x.lastRefresh||Date.now()-new Date(x.lastRefresh)>DAY)})&&workerUrl())refreshSports()},2200);
-  setInterval(updateCurrentTimeLine,60000);
+  setInterval(()=>{updateCurrentTimeLine();if(state.view==="today")renderToday()},60000);
   render();
 })();
