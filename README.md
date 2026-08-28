@@ -7,13 +7,16 @@ medications, reminders, progress, and a resolved daily timeline.
 
 ## This release
 
-App version: **1.3.2**  
+App version: **1.3.3**  
 Cloudflare Worker version: **0.12.3**
 
-- Expired timed events leave Today after their explicit end or a one-hour fallback
-- Daily incomplete habits receive priority in the fixed Widgy habit slots
-- Empty streak labels use the ASCII-safe hyphen required by Widgy
-- Existing calendar views, storage, recurrence, sync, and widget arrays are preserved
+- Daily habit completion is derived from local-date completion history
+- Historical calendar dates evaluate completion for the requested date
+- Unchecking a daily habit removes only today's record and preserves prior days
+- Weekly and other period-based goals retain their existing period behavior
+- Local calendar-date rollover refreshes the app without resetting stored history
+- Today event cards show calendar identity once in their metadata, without a
+  duplicate right-side calendar-name badge
 
 See `UPLOAD-INSTRUCTIONS.txt` for deployment and verification. The Worker is
 included in `cloudflare-worker-v0.12.3/`.

@@ -1,4 +1,4 @@
-OpalDay v1.3.2 + Cloudflare Worker v0.12.3 — Today relevance + Widgy cleanup
+OpalDay v1.3.3 + Cloudflare Worker v0.12.3 — Daily habit rollover and event-card cleanup
 
 DATA SAFETY
 This release keeps the existing local-storage key (opalday-data-v1), sync-code
@@ -12,19 +12,20 @@ files with the same names. Keep cloudflare-worker-v0.12.3 as a reference folder;
 GitHub Pages does not use that folder directly.
 
 CLOUDFLARE WORKER
-Open cloudflare-worker-v0.12.3/worker.js, copy the entire file, replace the
-current Cloudflare Worker code, and deploy it. Keep the current D1 binding,
-database, cron trigger, routes, VAPID configuration, and secrets unchanged.
+Worker v0.12.3 is included for completeness and is byte-for-byte unchanged.
+If v0.12.3 is already deployed, do not redeploy it.
 
 No SQL migration is required. Do not recreate or replace the D1 database.
 
 VERIFY
-1. Settings > About reports app version 1.3.2.
+1. Settings > About reports app version 1.3.3.
 2. The Worker /health URL reports version 0.12.3 and widgetSlots "display-safe".
-3. Expired timed events are absent from Today; all-day and future events remain.
-4. widgetSlots.habits prioritizes incomplete daily habits and keeps blank slots.
-5. stats.streak remains null and stats.streakLabel is the ASCII-safe value "-".
-6. stats.events and stats.habits retain their live values.
+3. A daily habit completed yesterday displays 0/1 today.
+4. Yesterday remains complete when viewed historically.
+5. Completing or unchecking a daily habit today changes only today's record.
+6. Weekly goals remain complete for the rest of their current weekly period.
+7. Today event cards show the calendar once in the metadata/subtitle and no
+   longer show a duplicate right-side uppercase calendar-name badge.
 
 TYPOGRAPHY
 The app uses Avenir Next Medium for titles, names, headings, and important UI;
