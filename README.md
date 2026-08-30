@@ -7,19 +7,21 @@ medications, reminders, progress, and a resolved daily timeline.
 
 ## This release
 
-App version: **1.3.3**  
-Cloudflare Worker version: **0.12.3**
+App version: **1.3.4**  
+Cloudflare Worker version: **0.12.4**
 
-- Daily habit completion is derived from local-date completion history
-- Historical calendar dates evaluate completion for the requested date
-- Unchecking a daily habit removes only today's record and preserves prior days
-- Weekly and other period-based goals retain their existing period behavior
-- Local calendar-date rollover refreshes the app without resetting stored history
+- Recurring parent and checklist state is scoped to the scheduled occurrence
+- Daily, fixed-day weekly, interval, and monthly occurrences begin fresh on
+  their next designated local date even when the prior occurrence was unfinished
+- Flexible weekly goals retain their existing Sunday-through-Saturday period behavior
+- Existing completion timestamps remain the historical compatibility source
+- Occurrence-state sync resolves newer changes without resurrecting cleared state
+- Today and `/widget/today` use matching occurrence and due-date semantics
 - Today event cards show calendar identity once in their metadata, without a
   duplicate right-side calendar-name badge
 
 See `UPLOAD-INSTRUCTIONS.txt` for deployment and verification. The Worker is
-included in `cloudflare-worker-v0.12.3/`.
+included in `cloudflare-worker-v0.12.4/`.
 
 ## Data safety
 

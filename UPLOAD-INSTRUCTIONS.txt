@@ -1,4 +1,4 @@
-OpalDay v1.3.3 + Cloudflare Worker v0.12.3 — Daily habit rollover and event-card cleanup
+OpalDay v1.3.4 + Cloudflare Worker v0.12.4 — Habit occurrence-state repair
 
 DATA SAFETY
 This release keeps the existing local-storage key (opalday-data-v1), sync-code
@@ -8,24 +8,28 @@ all-day dismissal markers, and deletion tombstones unchanged.
 
 GITHUB PAGES
 Upload all top-level app files to the root of the OpalDay repository, replacing
-files with the same names. Keep cloudflare-worker-v0.12.3 as a reference folder;
+files with the same names. Keep cloudflare-worker-v0.12.4 as a reference folder;
 GitHub Pages does not use that folder directly.
 
 CLOUDFLARE WORKER
-Worker v0.12.3 is included for completeness and is byte-for-byte unchanged.
-If v0.12.3 is already deployed, do not redeploy it.
+Replace the existing Worker source with cloudflare-worker-v0.12.4/worker.js and
+deploy it. This keeps /widget/today and scheduled reminders aligned with the
+app's repaired habit occurrence semantics.
 
 No SQL migration is required. Do not recreate or replace the D1 database.
 
 VERIFY
-1. Settings > About reports app version 1.3.3.
-2. The Worker /health URL reports version 0.12.3 and widgetSlots "display-safe".
-3. A daily habit completed yesterday displays 0/1 today.
-4. Yesterday remains complete when viewed historically.
-5. Completing or unchecking a daily habit today changes only today's record.
-6. Weekly goals remain complete for the rest of their current weekly period.
-7. Today event cards show the calendar once in the metadata/subtitle and no
-   longer show a duplicate right-side uppercase calendar-name badge.
+1. Settings > About reports app version 1.3.4.
+2. The Worker /health URL reports version 0.12.4 and habitOccurrences true.
+3. A Daily habit and all of its subtasks begin fresh on the next local day,
+   whether the prior occurrence was complete, partial, or untouched.
+4. A Sunday-only weekly habit begins fresh on its next scheduled Sunday and
+   does not appear as a phantom Monday occurrence.
+5. Same-day parent and subtask checks survive reload and sync.
+6. Prior parent completion timestamps remain available to history/progress.
+7. Flexible weekly goals retain their Sunday-through-Saturday period behavior.
+8. /widget/today agrees with the Today screen about the current occurrence.
+9. Today event cards still show the calendar once in their metadata/subtitle.
 
 TYPOGRAPHY
 The app uses Avenir Next Medium for titles, names, headings, and important UI;
