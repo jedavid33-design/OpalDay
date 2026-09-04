@@ -76,7 +76,7 @@
         <div class="preview hidden" id="entryPreview"></div>
         <div class="schedule-editor hidden" id="scheduleEditor">
           <label>Type<select id="itemKind"><option value="habit">Habit</option><option value="reset">Household reset</option><option value="medication">Medication</option><option value="event">Event</option></select></label>
-          <label>Frequency<select id="itemCadence"><option value="daily">Every day</option><option value="weekly">Weekly goal</option><option value="monthly">Once a month</option><option value="interval">Every number of weeks</option><option value="once">One hard date</option></select></label>
+          <label id="priorityField">Priority<select id="itemPriority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></label><label>Frequency<select id="itemCadence"><option value="daily">Every day</option><option value="weekly">Weekly goal</option><option value="monthly">Once a month</option><option value="interval">Every number of weeks</option><option value="once">One hard date</option></select></label>
           <label id="targetField">Times each week<input id="itemTarget" type="number" min="1" max="14" value="1"></label>
           <label id="intervalField" class="hidden">Number of weeks<input id="itemInterval" type="number" min="2" max="52" value="4"></label>
           <label id="dayField">Preferred day (optional)<select id="itemDay"><option value="">Any day</option><option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></label>
