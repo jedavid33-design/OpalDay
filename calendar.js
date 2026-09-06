@@ -32,9 +32,9 @@
   state.calView=localStorage.getItem("opalday-cal-view")||"timeline";
   state.calCursor=new Date();
   state.editEvent=null; state.editCalendar=null;state.dayScrollPositions=state.dayScrollPositions||{};state.dayScrollManual=state.dayScrollManual||{};
-  state.calOverlays=JSON.parse(localStorage.getItem("opalday-cal-overlays")||"null")||{events:true,habits:false,medications:true,resets:false,completed:false};
+  state.calOverlays=JSON.parse(localStorage.getItem("opalday-cal-overlays")||"null")||{events:true,habits:false,medications:true,reminders:true,resets:false,completed:false};
   if(localStorage.getItem("opalday-v06-calendar-defaults-final")!=="done"){
-    state.calOverlays.habits=false;state.calOverlays.resets=false;state.calOverlays.completed=false;
+    state.calOverlays.habits=false;state.calOverlays.reminders=true;state.calOverlays.resets=false;state.calOverlays.completed=false;
     localStorage.setItem("opalday-cal-overlays",JSON.stringify(state.calOverlays));localStorage.setItem("opalday-v06-calendar-defaults-final","done")
   }
   function dk(d){return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-")}
@@ -101,7 +101,7 @@
     if(x.id==="holidays")return (saved+usHolidays(new Date().getFullYear()).length)+" holidays · built in";
     return saved+" events"+(x.sportId?" · built-in sport":"")
   }
-  function overlayKey(i){return i.kind==="medication"?"medications":i.kind==="reset"?"resets":"habits"}
+  function overlayKey(i){return i.kind==="medication"?"medications":i.kind==="reminder"?"reminders":i.kind==="reset"?"resets":"habits"}
   function systemOn(i,d){
     if(!state.calOverlays[overlayKey(i)]||(!state.calOverlays.completed&&itemComplete(i,d)))return false;
     if(i.kind==="medication")return medOccursOn(i,d);
@@ -112,7 +112,7 @@
     if(i.cadence==="monthly"){const a=new Date((i.hardDate||i.createdAt.slice(0,10))+"T12:00");return d.getDate()===a.getDate()}
     return false
   }
-  function entryColor(e){return e._system?(e.kind==="medication"?"#a7354f":e.kind==="reset"?"#4e9f99":"#8b6bb5"):c(e.calendarId).color}
+  function entryColor(e){return e._system?(e.kind==="medication"?"#a7354f":e.kind==="reminder"?"#7a6685":e.kind==="reset"?"#4e9f99":"#8b6bb5"):c(e.calendarId).color}
   function eventsOn(d){
     const builtin=state.calOverlays.events&&c("holidays").visible!==false?usHolidays(d.getFullYear()).filter(e=>e.date===dk(d)):[];
     const key=dk(d),dismissed=new Set(state.planner.dismissedAllDayOccurrences||[]);
