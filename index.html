@@ -70,15 +70,15 @@
   <div class="modal-backdrop hidden" id="addModal">
     <section class="modal-sheet">
       <div class="sheet-handle"></div><p class="eyebrow" id="itemFormEyebrow">Add anything</p><h2 id="itemFormTitle">What do you want to track?</h2>
-      <p class="modal-note">Write naturally. Add subtasks after a colon, separated by commas.</p>
+      <p class="modal-note">Enter a title, then choose the details below.</p>
       <form id="addForm">
-        <textarea id="naturalEntry" placeholder="Organize my closet once a month: hanging clothes, shoes, top shelf"></textarea>
+        <input id="naturalEntry" type="text" placeholder="What do you want to remember or track?" autocomplete="off">
         <div class="preview hidden" id="entryPreview"></div>
-        <div class="schedule-editor hidden" id="scheduleEditor">
+        <div class="schedule-editor" id="scheduleEditor">
           <label>Type<select id="itemKind"><option value="habit">Habit</option><option value="reset">Household reset</option><option value="medication">Medication</option><option value="event">Event</option><option value="reminder">Reminder</option></select></label>
-          <label id="priorityField">Priority<select id="itemPriority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></label><label>Frequency<select id="itemCadence"><option value="daily">Every day</option><option value="weekly">Weekly goal</option><option value="monthly">Once a month</option><option value="interval">Every number of weeks</option><option value="once">One date</option><option value="interval_months">Every number of months after completion</option></select></label>
+          <label id="priorityField">Priority<select id="itemPriority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></label><label id="frequencyField">Frequency<select id="itemCadence"><option value="daily">Every day</option><option value="weekly">Weekly goal</option><option value="monthly">Once a month</option><option value="interval">Every number of weeks</option><option value="once">One date</option></select></label>
           <label id="targetField">Times each week<input id="itemTarget" type="number" min="1" max="14" value="1"></label>
-          <label id="intervalField" class="hidden">Number of weeks<input id="itemInterval" type="number" min="2" max="52" value="4"></label><label id="monthIntervalField" class="hidden">Number of months<input id="itemIntervalMonths" type="number" min="1" max="60" value="3"></label>
+          <label id="intervalField" class="hidden">Number of weeks<input id="itemInterval" type="number" min="2" max="52" value="4"></label>
           <label id="dayField">Preferred day (optional)<select id="itemDay"><option value="">Any day</option><option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></label>
           <label id="dateField" class="hidden">Date<input id="itemDate" type="date"></label>
           <label>Time (optional)<input id="itemTime" type="time"></label><label id="reminderNotifyField" class="check-field hidden"><input id="itemReminderNotify" type="checkbox" checked> Send a notification</label>
@@ -128,7 +128,7 @@
   <div class="modal-backdrop hidden" id="calendarJumpModal"><section class="modal-sheet"><div class="sheet-handle"></div><p class="eyebrow">Jump through time</p><h2>Choose a month</h2><div class="calendar-jump-wheel"><label>Month<select id="jumpMonth"></select></label><label>Year<select id="jumpYear"></select></label></div><div class="modal-actions"><button class="secondary" data-close>Cancel</button><button class="primary" id="jumpToMonth">Go</button></div></section></div>
   <div class="modal-backdrop hidden" id="todayRemindersModal"><section class="modal-sheet"><div class="sheet-handle"></div><p class="eyebrow">Today’s notifications</p><h2>Remind me today</h2><p class="modal-note">Timed items use their scheduled time. Anything untimed defaults to noon.</p><div class="today-reminder-list" id="todayReminderList"></div><div class="modal-actions"><button class="secondary" id="clearTodayReminders">Clear today</button><button class="primary" id="enableTodayReminders">Set all reminders</button></div><button class="text-button" data-close>Cancel</button></section></div>
 
-  <div class="modal-backdrop hidden" id="aboutModal"><section class="modal-sheet compact-sheet"><div class="sheet-handle"></div><p class="eyebrow">About</p><h2>OpalDay</h2><img class="about-icon" src="./app-icon-180.png" alt="OpalDay icon"><p class="about-version">Version <strong id="aboutVersion">1.3.4</strong></p><p class="modal-note">Your routines, medications, and calendar—gently organized in one opalescent place.</p><button class="text-button" data-close>Done</button></section></div>
+  <div class="modal-backdrop hidden" id="aboutModal"><section class="modal-sheet compact-sheet"><div class="sheet-handle"></div><p class="eyebrow">About</p><h2>OpalDay</h2><img class="about-icon" src="./app-icon-180.png" alt="OpalDay icon"><p class="about-version">Version <strong id="aboutVersion">1.5.1</strong></p><p class="modal-note">Your routines, medications, and calendar—gently organized in one opalescent place.</p><button class="text-button" data-close>Done</button></section></div>
 
   <div class="toast hidden" id="toast"></div>
   <button class="foreground-notification hidden" id="foregroundNotification" aria-live="assertive"><span class="foreground-notification-icon">✦</span><span><strong id="foregroundNotificationTitle">OpalDay reminder</strong><small id="foregroundNotificationBody"></small></span></button>
