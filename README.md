@@ -7,7 +7,7 @@ medications, reminders, progress, and a resolved daily timeline.
 
 ## This release
 
-App version: **1.3.4**  
+App version: **1.5.1**  
 Cloudflare Worker version: **0.12.4**
 
 - Recurring parent and checklist state is scoped to the scheduled occurrence
@@ -37,3 +37,10 @@ migration, reset, or database replacement is required.
 - Reminders have priority and optional push notification support.
 - Habit priority can now be edited directly from System Details.
 - Existing “Refill med container” entries that were accidentally classified as Medication are migrated to Habit.
+
+## v1.5.1 — Simple reminders
+- Removed natural-language parsing. Titles are stored exactly as entered.
+- Reminders are one-time only with an explicit due date.
+- Removed streak behavior and automatic repeat rules from reminders.
+- Reminder notifications default on; priority remains editable.
+- Existing recurring reminder records are migrated to a single due date when possible.
