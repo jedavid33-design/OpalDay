@@ -485,7 +485,7 @@ export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: HEADERS });
     const url = new URL(request.url);
-    if (url.pathname === "/health") return json({ ok: true, app: "OpalDay", version: "1.5.1", notifications: true, reminderTimes: "individual-first", recurringEvents: "advanced", habitOccurrences: true, widgetToday: true, widgetSchema: 2, widgetSlots: "display-safe" });
+    if (url.pathname === "/health") return json({ ok: true, app: "OpalDay", version: "1.5.2", notifications: true, reminderTimes: "individual-first", recurringEvents: "advanced", habitOccurrences: true, widgetToday: true, widgetSchema: 2, widgetSlots: "display-safe" });
     if (url.pathname === "/push/vapid-key" && request.method === "GET") return json({ publicKey: VAPID.publicKey });
     if (url.pathname === "/push/subscribe" && request.method === "POST") {
       const payload = await request.json(), code = String(payload.code || "").toUpperCase(), subscription = payload.subscription || {}, keys = subscription.keys || {};
