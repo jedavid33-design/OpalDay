@@ -23,3 +23,5 @@ h1,h2,h3,.item-title-row strong,.event-chip strong,.duration-event strong,.syste
 .sports-toggle strong,.today-reminder-row strong,.med-hard-status strong,.detail-grid strong,.time-wheel select,.goal-band button,.calendar-jump-wheel select,.code-display,.progress-ring span{font-weight:500}
 .sports-toggle strong,.today-reminder-row strong,.monthly-row strong,.calendar-row strong{white-space:normal;overflow-wrap:anywhere}
 @media (min-width:700px) and (min-height:600px) and (pointer:coarse){.app-shell,.calendar-active .app-shell{padding-top:max(64px,calc(env(safe-area-inset-top) + 44px))}}
+
+.detail-priority{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:14px 0;padding:14px 16px;border-radius:18px;background:rgba(239,237,246,.72);font-size:.95rem}.detail-priority select{min-width:132px}.kind-reminder .kind-label{color:#6b557a}.priority-pip{margin-right:8px}

@@ -36,7 +36,7 @@
         <div class="progress-ring" id="progressRing"><span id="progressNumber">0%</span></div>
       </section>
       <div class="filter-row" id="habitFilters">
-        <button class="selected" data-filter="all">All</button><button data-filter="habit">Habits</button><button data-filter="reset">Resets</button><button data-filter="medication">Meds</button>
+        <button class="selected" data-filter="all">All</button><button data-filter="habit">Habits</button><button data-filter="reset">Resets</button><button data-filter="medication">Meds</button><button data-filter="reminder">Reminders</button>
       </div>
       <div class="system-list" id="systemList"></div>
     </section>
@@ -50,7 +50,7 @@
 
     <section class="view hidden" id="calendarView">
       <div class="view-switcher" id="calendarViewSwitcher"><button class="selected" data-cal-view="timeline">Timeline</button><button data-cal-view="day">Day</button><button data-cal-view="week">Week</button><button data-cal-view="month">Month</button></div>
-      <div class="overlay-filters" id="overlayFilters"><button data-overlay="events">Events</button><button data-overlay="habits">Habits</button><button data-overlay="medications">Medications</button><button data-overlay="resets">Resets</button><button data-overlay="completed">Completed</button></div>
+      <div class="overlay-filters" id="overlayFilters"><button data-overlay="events">Events</button><button data-overlay="habits">Habits</button><button data-overlay="medications">Medications</button><button data-overlay="reminders">Reminders</button><button data-overlay="resets">Resets</button><button data-overlay="completed">Completed</button></div>
       <div class="date-nav"><button id="calPrev">‹</button><button id="calToday">Today</button><button class="range-button" id="calRange" aria-label="Choose month and year"></button><button id="calNext">›</button></div>
       <div class="section-heading"><div><p class="eyebrow">Color-coded</p><h2>Your calendar</h2></div><button class="add-button" id="addEventButton">＋ Event</button></div>
       <div id="calendarCanvas"></div>
@@ -75,13 +75,13 @@
         <textarea id="naturalEntry" placeholder="Organize my closet once a month: hanging clothes, shoes, top shelf"></textarea>
         <div class="preview hidden" id="entryPreview"></div>
         <div class="schedule-editor hidden" id="scheduleEditor">
-          <label>Type<select id="itemKind"><option value="habit">Habit</option><option value="reset">Household reset</option><option value="medication">Medication</option><option value="event">Event</option></select></label>
-          <label id="priorityField">Priority<select id="itemPriority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></label><label>Frequency<select id="itemCadence"><option value="daily">Every day</option><option value="weekly">Weekly goal</option><option value="monthly">Once a month</option><option value="interval">Every number of weeks</option><option value="once">One hard date</option></select></label>
+          <label>Type<select id="itemKind"><option value="habit">Habit</option><option value="reset">Household reset</option><option value="medication">Medication</option><option value="event">Event</option><option value="reminder">Reminder</option></select></label>
+          <label id="priorityField">Priority<select id="itemPriority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></label><label>Frequency<select id="itemCadence"><option value="daily">Every day</option><option value="weekly">Weekly goal</option><option value="monthly">Once a month</option><option value="interval">Every number of weeks</option><option value="once">One date</option><option value="interval_months">Every number of months after completion</option></select></label>
           <label id="targetField">Times each week<input id="itemTarget" type="number" min="1" max="14" value="1"></label>
-          <label id="intervalField" class="hidden">Number of weeks<input id="itemInterval" type="number" min="2" max="52" value="4"></label>
+          <label id="intervalField" class="hidden">Number of weeks<input id="itemInterval" type="number" min="2" max="52" value="4"></label><label id="monthIntervalField" class="hidden">Number of months<input id="itemIntervalMonths" type="number" min="1" max="60" value="3"></label>
           <label id="dayField">Preferred day (optional)<select id="itemDay"><option value="">Any day</option><option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></label>
           <label id="dateField" class="hidden">Date<input id="itemDate" type="date"></label>
-          <label>Time (optional)<input id="itemTime" type="time"></label>
+          <label>Time (optional)<input id="itemTime" type="time"></label><label id="reminderNotifyField" class="check-field hidden"><input id="itemReminderNotify" type="checkbox" checked> Send a notification</label>
         </div>
         <div class="modal-actions"><button type="button" class="secondary" data-close>Cancel</button><button class="primary" id="addSubmit">Add item</button></div>
       </form>

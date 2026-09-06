@@ -28,3 +28,12 @@ included in `cloudflare-worker-v0.12.4/`.
 The app continues to use `opalday-data-v1`, the existing sync code, the same
 D1 database and binding, and the existing event/item/calendar IDs. No SQL
 migration, reset, or database replacement is required.
+
+## v1.5.0 — Reminders
+- Added a Reminder item type for one-time and recurring future tasks.
+- Reminder dates can be one-time, weekly/monthly, or every N months after completion.
+- Natural entry recognizes phrases such as “remind me Tuesday…”, “tomorrow”, and “in 3 months”.
+- Reminders can carry forward on Today when overdue until completed.
+- Reminders have priority and optional push notification support.
+- Habit priority can now be edited directly from System Details.
+- Existing “Refill med container” entries that were accidentally classified as Medication are migrated to Habit.
