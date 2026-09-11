@@ -117,7 +117,7 @@
       if(!due)return false;
       // A reminder lives on its due date. If it remains open after that date,
       // carry it forward one day at a time through today, never into the future.
-      return key===due || (key>due && key<=today && !itemComplete(i,d));
+      return key===due || (key>due && key<=today && !reminderCompletedEver(i));
     }
     if(i.cadence==="daily")return true;
     if(i.cadence==="once")return i.hardDate===dk(d);
