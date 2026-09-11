@@ -144,7 +144,8 @@ function legacyPeriodCount(item, key, timeZone) { const completions = item.compl
 function periodComplete(item, key, timeZone) { const target = itemTarget(item), parent = item.kind === "medication" ? null : itemOccurrenceState(item, key)?.parent; if (parent && typeof parent.completed === "boolean" && target === 1) return parent.completed; return legacyPeriodCount(item, key, timeZone) >= target; }
 function addMonthsKey(key, months) { const d = new Date(key + "T12:00:00Z"), wanted = d.getUTCDate(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() + Number(months || 0)); const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0, 12)).getUTCDate(); d.setUTCDate(Math.min(wanted, last)); return d.toISOString().slice(0,10); }
 function latestCompletionKey(item) { return (item.completions || []).map(v => new Date(v)).filter(d => !Number.isNaN(d.getTime())).sort((a,b)=>b-a)[0]?.toISOString().slice(0,10) || null; }
-function reminderDueKey(item) { if (item.cadence === "interval_months") { const completed = latestCompletionKey(item), anchor = completed || item.hardDate || String(item.createdAt || "").slice(0,10); return anchor ? addMonthsKey(anchor, completed ? Number(item.intervalMonths || 3) : 0) : null; } return item.hardDate || null; }
+function reminderDueKey(item) { return item.hardDate || null; }
+function reminderCompletedEver(item) { if (item.kind !== "reminder") return false; const due = reminderDueKey(item), stateKey = "once:" + (due || String(item.createdAt || "").slice(0,10) || "undated"), parent = item.occurrenceStates?.[stateKey]?.parent; if (parent && typeof parent.completed === "boolean") return parent.completed; return (item.completions || []).length > 0; }
 function itemOccurs(item, key) { const d = new Date(key + "T12:00:00Z"); if (item.cadence === "daily") return true; if (item.cadence === "once") return !item.hardDate || item.hardDate === key; if (item.cadence === "weekly") return item.fixedDay === null || item.fixedDay === undefined || Number(item.fixedDay) === d.getUTCDay(); if (item.cadence === "monthly") { const anchor = new Date((item.hardDate || String(item.createdAt || "").slice(0, 10) || key) + "T12:00:00Z"); return d.getUTCDate() === anchor.getUTCDate(); } if (item.cadence === "interval") { const anchor = new Date((item.hardDate || String(item.createdAt || "").slice(0, 10) || key) + "T12:00:00Z"), days = Math.round((d - anchor) / 86400000); return days >= 0 && days % ((Number(item.intervalWeeks) || 1) * 7) === 0; } if (item.cadence === "interval_months") return reminderDueKey(item) === key; return item.kind !== "medication"; }
 const eventDateDiff = (a, b) => Math.round((new Date(a + "T12:00:00Z") - new Date(b + "T12:00:00Z")) / 86400000);
 function eventRecurrenceRule(event) {
@@ -235,7 +236,7 @@ function widgetPeriodCount(item, key, timeZone) {
 }
 function widgetItemDue(item, key, timeZone) {
   if (item.kind === "medication") return itemOccurs(item, key) || completionOn(item, key, timeZone);
-  if (item.kind === "reminder" && ["once","interval_months"].includes(item.cadence)) { const due=reminderDueKey(item); return !!due && due <= key && !periodComplete(item,key,timeZone); }
+  if (item.kind === "reminder") { const due=reminderDueKey(item); return !!due && due <= key && !reminderCompletedEver(item); }
   return itemOccurs(item, key);
 }
 function widgetMedicationStatus(item, key, parts, timeZone, now) {
@@ -384,7 +385,7 @@ function buildWidgetToday(planner, now, timeZone) {
     const status = widgetMedicationStatus(item, key, parts, timeZone, now);
     return { id: String(item.id || ""), kind: "medication", title: String(item.title || "Untitled medication"), time: item.fixedTime || null, startTimeLabel: item.fixedTime ? clockLabel(item.fixedTime) : null, timeLabel: item.fixedTime ? clockLabel(item.fixedTime) : "Anytime", completed: status === "taken", status };
   });
-  const allReminders = items.filter(item => item.kind === "reminder" && !periodComplete(item, key, timeZone)).map(item => ({ id: String(item.id || ""), kind: "reminder", title: String(item.title || "Untitled reminder"), time: item.fixedTime || null, startTimeLabel: item.fixedTime ? clockLabel(item.fixedTime) : null, timeLabel: item.fixedTime ? clockLabel(item.fixedTime) : "Anytime", completed: false, status: "due" }));
+  const allReminders = items.filter(item => item.kind === "reminder" && !reminderCompletedEver(item)).map(item => ({ id: String(item.id || ""), kind: "reminder", title: String(item.title || "Untitled reminder"), time: item.fixedTime || null, startTimeLabel: item.fixedTime ? clockLabel(item.fixedTime) : null, timeLabel: item.fixedTime ? clockLabel(item.fixedTime) : "Anytime", completed: false, status: "due" }));
   const otherTimedItems = items.filter(item => !["habit", "medication", "reminder"].includes(item.kind) && item.fixedTime && !periodComplete(item, key, timeZone)).map(item => ({ id: String(item.id || ""), kind: item.kind || "item", title: String(item.title || "Untitled item"), time: item.fixedTime, startTimeLabel: clockLabel(item.fixedTime), timeLabel: clockLabel(item.fixedTime), completed: false, status: "due" }));
   const habits = allHabits.filter(item => !item.completed), medications = allMedications.filter(item => !item.completed), reminders = allReminders.filter(item => !item.completed);
   const timedFeed = events.filter(event => !event.allDay).map(event => ({
@@ -491,7 +492,7 @@ export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: HEADERS });
     const url = new URL(request.url);
-    if (url.pathname === "/health") return json({ ok: true, app: "OpalDay", version: "1.5.4", notifications: true, reminderTimes: "individual-first", recurringEvents: "advanced", habitOccurrences: true, widgetToday: true, widgetSchema: 2, widgetSlots: "display-safe" });
+    if (url.pathname === "/health") return json({ ok: true, app: "OpalDay", version: "1.5.5", notifications: true, reminderTimes: "individual-first", recurringEvents: "advanced", habitOccurrences: true, widgetToday: true, widgetSchema: 2, widgetSlots: "display-safe" });
     if (url.pathname === "/push/vapid-key" && request.method === "GET") return json({ publicKey: VAPID.publicKey });
     if (url.pathname === "/push/subscribe" && request.method === "POST") {
       const payload = await request.json(), code = String(payload.code || "").toUpperCase(), subscription = payload.subscription || {}, keys = subscription.keys || {};

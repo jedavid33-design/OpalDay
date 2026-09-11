@@ -7,7 +7,7 @@ medications, reminders, progress, and a resolved daily timeline.
 
 ## This release
 
-App version: **1.5.4**  
+App version: **1.5.5**  
 Cloudflare Worker version: **0.12.4**
 
 - Recurring parent and checklist state is scoped to the scheduled occurrence
@@ -40,7 +40,7 @@ migration, reset, or database replacement is required.
 
 
 
-## v1.5.4 — Reminder calendar rollover
+## v1.5.5 — Reminder calendar rollover
 
 - Reminders are enabled by default on the Calendar screen, including a one-time migration for existing installs.
 - Open reminders carry forward on the calendar from their due date through the current day until completed.
@@ -58,3 +58,9 @@ migration, reset, or database replacement is required.
 - Removed streak behavior and automatic repeat rules from reminders.
 - Reminder notifications default on; priority remains editable.
 - Existing recurring reminder records are migrated to a single due date when possible.
+
+
+## v1.5.5
+- Fixed overdue reminder rollover for existing and newly created reminders.
+- An incomplete reminder remains visible on each day from its due date through today until checked complete.
+- Reminder completion is tracked against the reminder itself, not the current calendar day.
