@@ -37,6 +37,13 @@
     state.calOverlays.habits=false;state.calOverlays.reminders=true;state.calOverlays.resets=false;state.calOverlays.completed=false;
     localStorage.setItem("opalday-cal-overlays",JSON.stringify(state.calOverlays));localStorage.setItem("opalday-v06-calendar-defaults-final","done")
   }
+  // v1.5.4: Reminders are a default calendar overlay for existing installs too.
+  // Apply this once so a later manual toggle remains the user's choice.
+  if(localStorage.getItem("opalday-v154-reminders-calendar-default")!=="done"){
+    state.calOverlays.reminders=true;
+    localStorage.setItem("opalday-cal-overlays",JSON.stringify(state.calOverlays));
+    localStorage.setItem("opalday-v154-reminders-calendar-default","done");
+  }
   function dk(d){return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-")}
   function addSportsEnd(event){if(!event.date||!event.time)return event;const start=new Date(event.date+"T"+event.time),finish=new Date(start.getTime()+3*60*60*1000);event.allDay=false;event.endDate=dk(finish);event.end=String(finish.getHours()).padStart(2,"0")+":"+String(finish.getMinutes()).padStart(2,"0");return event}
   function initTimeWheel(prefix){const hour=$("#"+prefix+"Hour"),minute=$("#"+prefix+"Minute");if(!hour)return;minute.querySelectorAll("option[data-existing]").forEach(option=>option.remove());if(!hour.options.length)hour.innerHTML=Array.from({length:12},(_,n)=>'<option value="'+(n+1)+'">'+(n+1)+'</option>').join("");if(!minute.options.length)minute.innerHTML=Array.from({length:12},(_,n)=>'<option value="'+String(n*5).padStart(2,"0")+'">'+String(n*5).padStart(2,"0")+'</option>').join("")}
@@ -105,6 +112,13 @@
   function systemOn(i,d){
     if(!state.calOverlays[overlayKey(i)]||(!state.calOverlays.completed&&itemComplete(i,d)))return false;
     if(i.kind==="medication")return medOccursOn(i,d);
+    if(i.kind==="reminder"){
+      const due=i.hardDate, key=dk(d), today=dk(new Date());
+      if(!due)return false;
+      // A reminder lives on its due date. If it remains open after that date,
+      // carry it forward one day at a time through today, never into the future.
+      return key===due || (key>due && key<=today && !itemComplete(i,d));
+    }
     if(i.cadence==="daily")return true;
     if(i.cadence==="once")return i.hardDate===dk(d);
     if(i.cadence==="weekly")return i.fixedDay!==null&&i.fixedDay===d.getDay();
