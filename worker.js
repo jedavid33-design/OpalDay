@@ -235,7 +235,7 @@ function widgetPeriodCount(item, key, timeZone) {
 }
 function widgetItemDue(item, key, timeZone) {
   if (item.kind === "medication") return itemOccurs(item, key) || completionOn(item, key, timeZone);
-  if (item.kind === "reminder" && ["once","interval_months"].includes(item.cadence)) { const due=reminderDueKey(item); return !!due && due <= key && !periodComplete(item,key,timeZone); }
+  if (item.kind === "reminder") { const due = reminderDueKey(item); return !!due && due === key; }
   return itemOccurs(item, key);
 }
 function widgetMedicationStatus(item, key, parts, timeZone, now) {
@@ -384,8 +384,14 @@ function buildWidgetToday(planner, now, timeZone) {
     const status = widgetMedicationStatus(item, key, parts, timeZone, now);
     return { id: String(item.id || ""), kind: "medication", title: String(item.title || "Untitled medication"), time: item.fixedTime || null, startTimeLabel: item.fixedTime ? clockLabel(item.fixedTime) : null, timeLabel: item.fixedTime ? clockLabel(item.fixedTime) : "Anytime", completed: status === "taken", status };
   });
-  const otherTimedItems = items.filter(item => !["habit", "medication"].includes(item.kind) && item.fixedTime && !periodComplete(item, key, timeZone)).map(item => ({ id: String(item.id || ""), kind: item.kind || "item", title: String(item.title || "Untitled item"), time: item.fixedTime, startTimeLabel: clockLabel(item.fixedTime), timeLabel: clockLabel(item.fixedTime), completed: false, status: "due" }));
-  const habits = allHabits.filter(item => !item.completed), medications = allMedications.filter(item => !item.completed);
+  const allReminders = items.filter(item => item.kind === "reminder").map(item => ({
+    id: String(item.id || ""), kind: "reminder", title: String(item.title || "Untitled reminder"),
+    time: item.fixedTime || null, startTimeLabel: item.fixedTime ? clockLabel(item.fixedTime) : null,
+    timeLabel: item.fixedTime ? clockLabel(item.fixedTime) : "Anytime",
+    completed: periodComplete(item, key, timeZone), status: "due"
+  }));
+  const otherTimedItems = items.filter(item => !["habit", "medication", "reminder"].includes(item.kind) && item.fixedTime && !periodComplete(item, key, timeZone)).map(item => ({ id: String(item.id || ""), kind: item.kind || "item", title: String(item.title || "Untitled item"), time: item.fixedTime, startTimeLabel: clockLabel(item.fixedTime), timeLabel: clockLabel(item.fixedTime), completed: false, status: "due" }));
+  const habits = allHabits.filter(item => !item.completed), medications = allMedications.filter(item => !item.completed), reminders = allReminders.filter(item => !item.completed);
   const timedFeed = events.filter(event => !event.allDay).map(event => ({
     id: event.occurrenceId, kind: "event", title: event.title, startTimeLabel: event.startTimeLabel,
     endTimeLabel: event.endTimeLabel, timeLabel: event.timeLabel, status: event.status,
@@ -410,12 +416,18 @@ function buildWidgetToday(planner, now, timeZone) {
     timeLabel: item.startTimeLabel || "Anytime", status: item.status,
     calendar: { id: "medications", name: "Medication", color: "#a7354f" }, durationMinutes: null
   }));
-  const nonMedicationTimedFeed = timedFeed.filter(item => item.kind !== "medication");
+  const reminderEventRows = reminders.map(item => ({
+    id: item.id, kind: "reminder", title: item.title,
+    startTimeLabel: item.startTimeLabel || "Anytime", endTimeLabel: null,
+    timeLabel: item.startTimeLabel || "Anytime", status: "due",
+    calendar: { id: "reminders", name: "Reminder", color: "#7a6685" }, durationMinutes: null
+  }));
+  const nonMedicationTimedFeed = timedFeed.filter(item => !["medication", "reminder"].includes(item.kind));
   const whatsHappening = medicationEventRows.concat(events.filter(event => event.allDay).map(event => ({
     id: event.occurrenceId, kind: "event", title: event.title, startTimeLabel: "All day",
     endTimeLabel: null, timeLabel: "All day", status: "all-day", calendar: event.calendar,
     durationMinutes: null
-  })), nonMedicationTimedFeed);
+  })), nonMedicationTimedFeed, reminderEventRows);
   const widgetHabits = habits.filter(item => !item.time);
   const widgetHabitSelection = widgetHabits.map((item, index) => ({ item, index, priority: ({ high: 0, medium: 1, low: 2 })[(items.find(raw => String(raw.id || "") === item.id)?.priority || "medium")] ?? 1 })).sort((a, b) => a.priority - b.priority || Number(b.item.cadence === "daily") - Number(a.item.cadence === "daily") || a.index - b.index).map(entry => entry.item);
   const stats = { events: whatsHappening.length, habits: widgetHabits.length, streak: null, streakLabel: "-" };
@@ -440,6 +452,7 @@ function buildWidgetToday(planner, now, timeZone) {
     timedFeed,
     habits,
     medications,
+    reminders,
     otherTimedItems,
     dailyQuote: dailyQuoteForDate(key),
     eventCount: whatsHappening.length,
@@ -485,7 +498,7 @@ export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: HEADERS });
     const url = new URL(request.url);
-    if (url.pathname === "/health") return json({ ok: true, app: "OpalDay", version: "1.5.2", notifications: true, reminderTimes: "individual-first", recurringEvents: "advanced", habitOccurrences: true, widgetToday: true, widgetSchema: 2, widgetSlots: "display-safe" });
+    if (url.pathname === "/health") return json({ ok: true, app: "OpalDay", version: "1.5.3", notifications: true, reminderTimes: "individual-first", recurringEvents: "advanced", habitOccurrences: true, widgetToday: true, widgetSchema: 2, widgetSlots: "display-safe" });
     if (url.pathname === "/push/vapid-key" && request.method === "GET") return json({ publicKey: VAPID.publicKey });
     if (url.pathname === "/push/subscribe" && request.method === "POST") {
       const payload = await request.json(), code = String(payload.code || "").toUpperCase(), subscription = payload.subscription || {}, keys = subscription.keys || {};
