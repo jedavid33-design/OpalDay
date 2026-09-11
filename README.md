@@ -7,7 +7,7 @@ medications, reminders, progress, and a resolved daily timeline.
 
 ## This release
 
-App version: **1.5.2**  
+App version: **1.5.3**  
 Cloudflare Worker version: **0.12.4**
 
 - Recurring parent and checklist state is scoped to the scheduled occurrence
@@ -38,6 +38,12 @@ migration, reset, or database replacement is required.
 - Habit priority can now be edited directly from System Details.
 - Existing “Refill med container” entries that were accidentally classified as Medication are migrated to Habit.
 
+
+
+## v1.5.3 — Reminder day anchoring + Widgy placement
+- Reminders now appear only on their assigned due date, matching medication-style day anchoring instead of carrying forward onto later days.
+- Widgy now exposes due reminders inside the Events / “What’s happening” section, including reminders without a specific time.
+- Reminder rows remain separate from habits and keep their own reminder styling/data.
 
 ## v1.5.2 — Compact checkbox rows
 - Keeps “Send a notification” directly beside its checkbox in Reminder editing.
