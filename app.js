@@ -1,4 +1,4 @@
-const STORAGE_KEY="opalday-data-v1",CODE_KEY="opalday-sync-code",DAY=86400000,OPALDAY_VERSION="1.5.3";
+const STORAGE_KEY="opalday-data-v1",CODE_KEY="opalday-sync-code",DAY=86400000,OPALDAY_VERSION="1.5.4";
 window.OPALDAY_VERSION=OPALDAY_VERSION;
 const state={planner:normalize(load(STORAGE_KEY,{items:[],updatedAt:""})),syncCode:localStorage.getItem(CODE_KEY)||"",syncStatus:"Local only",saveTimer:null,view:"today",filter:"all",selectedId:null,editItemId:null};
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],workerUrl=()=>(window.OPALDAY_CONFIG?.workerUrl||"").replace(/\/$/,"");
@@ -50,7 +50,7 @@ function takenOn(i,d=new Date()){return(i.completions||[]).some(v=>dateKey(new D
 function medOccursOn(i,d=new Date()){if(i.kind!=="medication")return false;const day=new Date(d);day.setHours(12,0,0,0);if(i.cadence==="daily")return true;if(i.cadence==="once")return!i.hardDate||i.hardDate===dateKey(day);if(i.cadence==="weekly")return i.fixedDay===null||i.fixedDay===day.getDay();if(i.cadence==="monthly"){const anchor=new Date((i.hardDate||i.createdAt.slice(0,10))+"T12:00");return day.getDate()===anchor.getDate()}if(i.cadence==="interval"){const anchor=new Date((i.hardDate||i.createdAt.slice(0,10))+"T12:00"),days=Math.round((day-anchor)/DAY);return days>=0&&days%((i.intervalWeeks||1)*7)===0}return false}
 function medState(i,d=new Date()){if(i.kind!=="medication"||!medOccursOn(i,d))return null;if(takenOn(i,d))return"taken";if(i.snoozedUntil&&new Date(i.snoozedUntil)>new Date())return"snoozed";if(!i.fixedTime)return"due";const due=new Date(dateKey(d)+"T"+i.fixedTime);return new Date()>due?"overdue":"scheduled"}
 function itemComplete(i,d=new Date()){return i.kind==="medication"?takenOn(i,d):complete(i,d)}
-function dueToday(i){const now=new Date();return i.kind==="medication"?medOccursOn(i,now)||takenOn(i,now):i.kind==="reminder"?itemOccursOn(i,now):itemOccursOn(i,now)}
+function dueToday(i){const now=new Date();return i.kind==="medication"?medOccursOn(i,now)||takenOn(i,now):i.kind==="reminder"?reminderOutstanding(i,now):itemOccursOn(i,now)}
 function save(push=true){localStorage.setItem(STORAGE_KEY,JSON.stringify(state.planner));render();if(push&&state.syncCode){clearTimeout(state.saveTimer);state.saveTimer=setTimeout(syncPush,650)}}
 function render(){$("#todayDate").textContent=new Intl.DateTimeFormat("en-US",{weekday:"long",month:"long",day:"numeric"}).format(new Date());document.body.classList.toggle("calendar-active",state.view==="calendar");$$(".view").forEach(v=>v.classList.add("hidden"));$("#"+state.view+"View").classList.remove("hidden");$("#progressCard").classList.toggle("hidden",state.view!=="habits");$$("[data-view]").forEach(b=>b.classList.toggle("selected",b.dataset.view===state.view));$("#syncText").textContent=state.syncCode?state.syncStatus:"Set up sync";$(".sync-dot").classList.toggle("active",!!state.syncCode);renderToday();renderSystems();renderProgress()}
 function renderToday(){
