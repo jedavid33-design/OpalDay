@@ -12,9 +12,9 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" sizes="180x180" href="./app-icon-180.png">
   <link rel="icon" type="image/png" sizes="512x512" href="./app-icon-512.png">
-  <link rel="stylesheet" href="./styles.css?v=1.5.8">
-  <link rel="stylesheet" href="./calendar.css?v=1.5.8">
-  <link rel="stylesheet" href="./v04.css?v=1.5.8">
+  <link rel="stylesheet" href="./styles.css?v=1.5.9">
+  <link rel="stylesheet" href="./calendar.css?v=1.5.9">
+  <link rel="stylesheet" href="./v04.css?v=1.5.9">
 </head>
 <body>
   <main class="app-shell">
@@ -25,26 +25,26 @@
 
     <section class="timeline-section view" id="todayView">
       <div class="section-heading"><div><p class="eyebrow">Your timeline</p><h2>What’s happening</h2></div><button class="add-button" id="addButton">＋ Add</button></div>
+      <section class="progress-card" id="progressCard">
+        <div class="progress-copy"><span class="progress-kicker">Gentle progress</span><strong id="progressTitle">Your day is wide open</strong><span id="progressNote">Add your first habit, reset, or medication.</span></div>
+        <div class="progress-ring" id="progressRing"><span id="progressNumber">0%</span></div>
+      </section>
       <div id="items"></div>
       <button class="today-reminders-button" id="todayRemindersButton"><span>◌</span><strong>Set reminders for today</strong><small>Notifications are off until you choose them.</small></button>
     </section>
 
     <section class="view hidden" id="habitsView">
       <div class="section-heading"><div><p class="eyebrow">Your systems</p><h2>Habits & resets</h2></div><button class="add-button view-add">＋ Add</button></div>
-      <section class="progress-card" id="progressCard">
-        <div class="progress-copy"><span class="progress-kicker">Gentle progress</span><strong id="progressTitle">Your day is wide open</strong><span id="progressNote">Add your first habit, reset, or medication.</span></div>
-        <div class="progress-ring" id="progressRing"><span id="progressNumber">0%</span></div>
-      
-      <div class="progress-merged">
-<p class="eyebrow">Gentle progress</p><h2>Your rhythm</h2>
-      <div class="stats-grid" id="statsGrid"></div>
-      <div class="week-card"><div class="section-heading"><div><p class="eyebrow">Sunday–Saturday</p><h2>This week</h2></div><strong id="weekPercent">0%</strong></div><div class="week-bars" id="weekBars"></div></div>
-      <div class="month-card"><p class="eyebrow">Room reset</p><h2>Monthly systems</h2><div id="monthlyList"></div></div>
-      </div></section>
       <div class="filter-row" id="habitFilters">
         <button class="selected" data-filter="all">All</button><button data-filter="habit">Habits</button><button data-filter="reset">Resets</button><button data-filter="medication">Meds</button><button data-filter="reminder">Reminders</button>
       </div>
       <div class="system-list" id="systemList"></div>
+      <div class="progress-merged">
+        <p class="eyebrow">Gentle progress</p><h2>Your rhythm</h2>
+        <div class="stats-grid" id="statsGrid"></div>
+        <div class="week-card"><div class="section-heading"><div><p class="eyebrow">Sunday–Saturday</p><h2>This week</h2></div><strong id="weekPercent">0%</strong></div><div class="week-bars" id="weekBars"></div></div>
+        <div class="month-card"><p class="eyebrow">Room reset</p><h2>Monthly systems</h2><div id="monthlyList"></div></div>
+      </div>
     </section>
 
     
@@ -156,9 +156,9 @@
 
   <div class="toast hidden" id="toast"></div>
   <button class="foreground-notification hidden" id="foregroundNotification" aria-live="assertive"><span class="foreground-notification-icon">✦</span><span><strong id="foregroundNotificationTitle">OpalDay reminder</strong><small id="foregroundNotificationBody"></small></span></button>
-  <script src="./config.js?v=1.5.8"></script>
-  <script src="./app.js?v=1.5.8"></script>
-  <script src="./calendar.js?v=1.5.8"></script>
-  <script src="./notifications.js?v=1.5.8"></script>
+  <script src="./config.js?v=1.5.9"></script>
+  <script src="./app.js?v=1.5.9"></script>
+  <script src="./calendar.js?v=1.5.9"></script>
+  <script src="./notifications.js?v=1.5.9"></script>
 </body>
 </html>
