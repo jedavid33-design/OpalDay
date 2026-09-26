@@ -78,3 +78,6 @@ h1,h2,h3,.item-title-row strong,.event-chip strong,.duration-event strong,.syste
 .more-options-toggle{margin:8px 0 4px;color:var(--wine);font-weight:600}
 .more-options-content.hidden{display:none}
 .more-options-content{padding-top:4px}
+
+.progress-merged{margin-top:28px;padding-top:20px;border-top:1px solid rgba(127,54,89,.12)}
+.progress-merged>h2{margin-bottom:16px}
