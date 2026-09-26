@@ -48,8 +48,8 @@ h1,h2,h3,.item-title-row strong,.event-chip strong,.duration-event strong,.syste
   padding:0!important;
 }
 .schedule-editor .check-field{white-space:normal}
-.cal-filter-wrap{position:relative;margin:-4px 0 15px}
-.filter-button{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border:1px solid rgba(127,54,89,.17);border-radius:999px;background:rgba(255,255,255,.55);color:var(--muted);font-size:11px;font-weight:750}
+.cal-filter-wrap{position:relative;margin:14px 0 4px}
+.filter-button{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border:0;border-radius:999px;background:linear-gradient(145deg,var(--wine),var(--plum));color:#fff;font-size:12px;font-weight:750;box-shadow:0 6px 15px rgba(93,41,75,.2)}
 .filter-button span{font-size:13px}
 .filter-popover{position:absolute;z-index:30;top:calc(100% + 6px);left:0;min-width:172px;padding:6px;border-radius:16px;background:rgba(255,255,255,.96);box-shadow:0 12px 32px rgba(93,41,75,.18);border:1px solid rgba(127,54,89,.12);display:grid}
 .filter-popover label{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer}
@@ -59,3 +59,10 @@ h1,h2,h3,.item-title-row strong,.event-chip strong,.duration-event strong,.syste
 .today-reminders-button.quiet>span{display:none}
 .today-reminders-button.quiet strong{font-size:12px;color:var(--wine);font-weight:700}
 .today-reminders-button.quiet small{font-size:11px}
+
+.heading-actions{display:flex;align-items:center;gap:8px}
+.collapse-toggle{width:34px;height:34px;border:1px solid rgba(127,54,89,.17);border-radius:12px;background:rgba(255,255,255,.55);color:var(--wine);font-size:18px;font-weight:700;line-height:1;display:grid;place-items:center;transition:transform .2s}
+.collapse-toggle[aria-expanded="true"]{transform:rotate(90deg)}
+.collapsible-content.collapsed{display:none}
+.collapsible-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sports-card .collapsible-heading{margin-bottom:0}
