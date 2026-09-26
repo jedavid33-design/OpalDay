@@ -160,5 +160,22 @@
   <script src="./app.js?v=1.6.0"></script>
   <script src="./calendar.js?v=1.6.0"></script>
   <script src="./notifications.js?v=1.6.0"></script>
+<script>
+if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').then(reg=>{
+  // Check for updates every time the app opens
+  reg.update();
+  // If a new service worker is waiting, activate it immediately
+  if(reg.waiting){reg.waiting.postMessage({type:'SKIP_WAITING'})}
+  reg.addEventListener('updatefound',()=>{
+    const nw=reg.installing;
+    nw.addEventListener('statechange',()=>{
+      if(nw.state==='installed'&&navigator.serviceWorker.controller){
+        // New version available - reload to get it
+        window.location.reload();
+      }
+    });
+  });
+});navigator.serviceWorker.addEventListener('controllerchange',()=>window.location.reload());}
+</script>
 </body>
 </html>
