@@ -50,6 +50,9 @@
 
     <section class="view hidden" id="calendarView">
       <div class="view-switcher" id="calendarViewSwitcher"><button class="selected" data-cal-view="timeline">Timeline</button><button data-cal-view="day">Day</button><button data-cal-view="week">Week</button><button data-cal-view="month">Month</button></div>
+      <div class="date-nav"><button id="calPrev">‹</button><button id="calToday">Today</button><button class="range-button" id="calRange" aria-label="Choose month and year"></button><button id="calNext">›</button></div>
+      <div class="section-heading"><div><p class="eyebrow">Color-coded</p><h2>Your calendar</h2></div><button class="add-button" id="addEventButton">＋ Event</button></div>
+      <div id="calendarCanvas"></div>
       <div class="cal-filter-wrap">
         <button class="filter-button" id="calFilterButton" aria-haspopup="true" aria-expanded="false"><span>⧩</span> Filters</button>
         <div class="filter-popover hidden" id="calFilterPopover" role="menu">
@@ -61,11 +64,8 @@
           <label><input type="checkbox" data-overlay="completed"><span>Completed</span></label>
         </div>
       </div>
-      <div class="date-nav"><button id="calPrev">‹</button><button id="calToday">Today</button><button class="range-button" id="calRange" aria-label="Choose month and year"></button><button id="calNext">›</button></div>
-      <div class="section-heading"><div><p class="eyebrow">Color-coded</p><h2>Your calendar</h2></div><button class="add-button" id="addEventButton">＋ Event</button></div>
-      <div id="calendarCanvas"></div>
-      <div class="calendar-manager"><div class="section-heading"><div><p class="eyebrow">Calendars</p><h2>Show & organize</h2></div><button class="secondary mini" id="newCalendarButton">＋ New</button></div><div id="calendarList"></div>
-      <div class="import-card sports-card"><p class="eyebrow">Sports calendars</p><h2>Your teams, automatically</h2><p class="modal-note">Choose what to follow. Schedules refresh daily and include new playoff games as they are announced.</p><div id="sportsCalendarList" class="sports-calendar-list"></div><button class="secondary full" id="refreshSports">Refresh sports schedules</button><p class="modal-note" id="sportsStatus">Built-in calendars update automatically.</p><div class="or-divider"><span>other calendars</span></div><label class="field">Import into<select id="icalCalendar"></select></label><label class="file-button">Choose .ics file<input id="icalFile" type="file" accept=".ics,text/calendar"></label></div></div>
+      <div class="calendar-manager"><div class="section-heading"><div><p class="eyebrow">Calendars</p><h2>Show & organize</h2></div><div class="heading-actions"><button class="collapse-toggle" id="calListToggle" aria-expanded="false" aria-label="Show calendars">›</button><button class="secondary mini" id="newCalendarButton">＋ New</button></div></div><div id="calendarList" class="collapsible-content collapsed"></div>
+      <div class="import-card sports-card"><div class="collapsible-heading" id="sportsHeading"><div><p class="eyebrow">Sports calendars</p><h2>Your teams, automatically</h2></div><button class="collapse-toggle" id="sportsToggle" aria-expanded="false" aria-label="Show sports calendars">›</button></div><div class="collapsible-content collapsed" id="sportsContent"><p class="modal-note">Choose what to follow. Schedules refresh daily and include new playoff games as they are announced.</p><div id="sportsCalendarList" class="sports-calendar-list"></div><button class="secondary full" id="refreshSports">Refresh sports schedules</button><p class="modal-note" id="sportsStatus">Built-in calendars update automatically.</p><div class="or-divider"><span>other calendars</span></div><label class="field">Import into<select id="icalCalendar"></select></label><label class="file-button">Choose .ics file<input id="icalFile" type="file" accept=".ics,text/calendar"></label></div></div></div>
     </section>
 
     <nav class="bottom-nav five">
