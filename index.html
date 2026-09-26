@@ -12,9 +12,9 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" sizes="180x180" href="./app-icon-180.png">
   <link rel="icon" type="image/png" sizes="512x512" href="./app-icon-512.png">
-  <link rel="stylesheet" href="./styles.css?v=1.5.6">
-  <link rel="stylesheet" href="./calendar.css?v=1.5.6">
-  <link rel="stylesheet" href="./v04.css?v=1.5.6">
+  <link rel="stylesheet" href="./styles.css?v=1.5.7">
+  <link rel="stylesheet" href="./calendar.css?v=1.5.7">
+  <link rel="stylesheet" href="./v04.css?v=1.5.7">
 </head>
 <body>
   <main class="app-shell">
@@ -94,11 +94,10 @@
 
   <div class="modal-backdrop hidden" id="addModal">
     <section class="modal-sheet">
-      <div class="sheet-handle"></div><p class="eyebrow" id="itemFormEyebrow">Add anything</p><h2 id="itemFormTitle">What do you want to track?</h2>
-      <p class="modal-note">Enter a title, then choose the details below.</p>
+      <div class="sheet-handle"></div><p class="eyebrow" id="itemFormEyebrow">Add item</p><h2 id="itemFormTitle">What do you want to track?</h2>
+      <p class="modal-note">Enter a title and set the details.</p>
       <form id="addForm">
-        <input id="naturalEntry" type="text" placeholder="What do you want to remember or track?" autocomplete="off">
-        <div class="preview hidden" id="entryPreview"></div>
+        <input id="itemTitle" type="text" placeholder="Title" autocomplete="off">
         <div class="schedule-editor" id="scheduleEditor">
           <label>Type<select id="itemKind"><option value="habit">Habit</option><option value="reset">Household reset</option><option value="medication">Medication</option><option value="event">Event</option><option value="reminder">Reminder</option></select></label>
           <label id="priorityField">Priority<select id="itemPriority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></label><label id="frequencyField">Frequency<select id="itemCadence"><option value="daily">Every day</option><option value="weekly">Weekly goal</option><option value="monthly">Once a month</option><option value="interval">Every number of weeks</option><option value="once">One date</option></select></label>
@@ -157,9 +156,9 @@
 
   <div class="toast hidden" id="toast"></div>
   <button class="foreground-notification hidden" id="foregroundNotification" aria-live="assertive"><span class="foreground-notification-icon">✦</span><span><strong id="foregroundNotificationTitle">OpalDay reminder</strong><small id="foregroundNotificationBody"></small></span></button>
-  <script src="./config.js?v=1.5.6"></script>
+  <script src="./config.js?v=1.5.7"></script>
   <script src="./app.js?v=1.5.7"></script>
-  <script src="./calendar.js?v=1.5.6"></script>
-  <script src="./notifications.js?v=1.5.6"></script>
+  <script src="./calendar.js?v=1.5.7"></script>
+  <script src="./notifications.js?v=1.5.7"></script>
 </body>
 </html>
