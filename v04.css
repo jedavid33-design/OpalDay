@@ -66,3 +66,11 @@ h1,h2,h3,.item-title-row strong,.event-chip strong,.duration-event strong,.syste
 .collapse-title.open::after{transform:translateY(-50%) rotate(90deg)}
 .collapse-title h2{pointer-events:none}
 .collapse-title .eyebrow{pointer-events:none}
+
+.collapse-toggle{display:none!important}
+.calendars-card{margin-top:18px}
+.calendars-card .collapse-title{padding:4px 26px 4px 0}
+.calendars-card .collapse-title h2{font-size:22px;margin:0}
+.calendars-actions{display:flex;justify-content:flex-end;margin:2px 0 10px}
+.sports-section{margin-top:18px;padding-top:16px;border-top:1px solid rgba(127,54,89,.12)}
+.sports-section .eyebrow{margin-bottom:6px}
