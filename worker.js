@@ -356,7 +356,8 @@ function widgetTimedLayout(items) {
   }));
   return { strategy: "chronological-timed-stack", primary: slots[0] || null, secondary: slots.slice(1), slots, overflowCount: Math.max(0, items.length - slots.length), emptyMessage: slots.length ? null : "Nothing else scheduled" };
 }
-function buildWidgetToday(planner, now, timeZone) {
+function buildWidgetToday(planner, now, timeZone, limits = {}) {
+  const itemLimit = Math.min(12, Math.max(1, limits.items || 6));
   const parts = zoneParts(now, timeZone), key = keyFrom(parts), nowMinute = parts.hour * 60 + parts.minute;
   const calendars = new Map((planner.calendars || []).map(calendar => [calendar.id, calendar]));
   const fallbackCalendar = (planner.calendars || [])[0] || { id: "calendar", name: "Calendar", color: "#7f3659", visible: true };
@@ -436,6 +437,25 @@ function buildWidgetToday(planner, now, timeZone) {
       return item ? { timeLabel: String(item.timeLabel || ""), title: String(item.title || "") } : { timeLabel: "", title: "" };
     })
   };
+  // One unified "what's on today" list: all-day events, then timed items in
+  // chronological order, then untimed meds / habits / reminders. No separate
+  // habits-vs-events sections.
+  const unifiedItems = events.filter(event => event.allDay).map(event => ({
+    id: event.occurrenceId, kind: "event", title: event.title,
+    timeLabel: "All day", startTimeLabel: "All day", status: "all-day"
+  })).concat(timedFeed.map(item => ({
+    id: item.id, kind: item.kind, title: item.title,
+    timeLabel: item.timeLabel, startTimeLabel: item.startTimeLabel, status: item.status
+  }))).concat(medications.filter(item => !item.time).map(item => ({
+    id: item.id, kind: "medication", title: item.title,
+    timeLabel: "Anytime", startTimeLabel: null, status: item.status
+  }))).concat(widgetHabitSelection.filter(item => !item.time).map(item => ({
+    id: item.id, kind: "habit", title: item.title,
+    timeLabel: "Anytime", startTimeLabel: null, status: "due"
+  }))).concat(reminders.filter(item => !item.time).map(item => ({
+    id: item.id, kind: "reminder", title: item.title,
+    timeLabel: "Anytime", startTimeLabel: null, status: "due"
+  })));
   return {
     schemaVersion: 2,
     generatedAt: now.toISOString(),
@@ -456,10 +476,13 @@ function buildWidgetToday(planner, now, timeZone) {
     widget: {
       events: whatsHappening.slice(0, 3),
       habits: widgetHabitSelection.slice(0, 2),
+      items: unifiedItems.slice(0, itemLimit),
       eventCount: whatsHappening.length,
       habitCount: widgetHabits.length,
+      itemCount: unifiedItems.length,
       eventOverflowCount: Math.max(0, whatsHappening.length - 3),
       habitOverflowCount: Math.max(0, widgetHabits.length - 2),
+      itemOverflowCount: Math.max(0, unifiedItems.length - itemLimit),
       stats
     },
     summary: {
@@ -492,7 +515,7 @@ export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: HEADERS });
     const url = new URL(request.url);
-    if (url.pathname === "/health") return json({ ok: true, app: "OpalDay", version: "1.5.5", notifications: true, reminderTimes: "individual-first", recurringEvents: "advanced", habitOccurrences: true, widgetToday: true, widgetSchema: 2, widgetSlots: "display-safe" });
+    if (url.pathname === "/health") return json({ ok: true, app: "OpalDay", version: "1.5.6", notifications: true, reminderTimes: "individual-first", recurringEvents: "advanced", habitOccurrences: true, widgetToday: true, widgetSchema: 2, widgetSlots: "display-safe", widgetUnifiedItems: true });
     if (url.pathname === "/push/vapid-key" && request.method === "GET") return json({ publicKey: VAPID.publicKey });
     if (url.pathname === "/push/subscribe" && request.method === "POST") {
       const payload = await request.json(), code = String(payload.code || "").toUpperCase(), subscription = payload.subscription || {}, keys = subscription.keys || {};
@@ -516,12 +539,13 @@ export default {
       let timeZone = url.searchParams.get("tz") || "";
       if (!validTimeZone(timeZone)) {
         const subscription = await env.DB.prepare("SELECT timezone FROM push_subscriptions WHERE sync_code = ? ORDER BY updated_at DESC LIMIT 1").bind(code).first();
-        timeZone = validTimeZone(subscription?.timezone) ? subscription.timezone : "America/New_York";
+        timeZone = subscription && validTimeZone(subscription.timezone) ? subscription.timezone : "America/New_York";
       }
       const row = await env.DB.prepare("SELECT data FROM planner_sync WHERE sync_code = ?").bind(code).first();
       if (!row) return json({ error: "Sync code not found." }, 404, { "Cache-Control": "private, no-store" });
+      const itemLimit = Math.min(12, Math.max(1, parseInt(url.searchParams.get("items") || "6", 10) || 6));
       try {
-        return json(buildWidgetToday(JSON.parse(row.data), new Date(), timeZone), 200, { "Cache-Control": "private, no-store" });
+        return json(buildWidgetToday(JSON.parse(row.data), new Date(), timeZone, { items: itemLimit }), 200, { "Cache-Control": "private, no-store" });
       } catch {
         return json({ error: "Widget data is temporarily unavailable." }, 500, { "Cache-Control": "private, no-store" });
       }
