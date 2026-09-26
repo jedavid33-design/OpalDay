@@ -164,7 +164,7 @@
     if(!$("#calendarCanvas"))return;
     const priorDayScroll=$("#dayScrollWindow");if(priorDayScroll)state.dayScrollPositions[priorDayScroll.dataset.date]=priorDayScroll.scrollTop;
     $$("[data-cal-view]").forEach(b=>b.classList.toggle("selected",b.dataset.calView===state.calView));
-    $$("[data-overlay]").forEach(b=>b.classList.toggle("selected",!!state.calOverlays[b.dataset.overlay]));
+    $$("#calFilterPopover [data-overlay]").forEach(c=>{c.checked=!!state.calOverlays[c.dataset.overlay]});
     $("#calRange").textContent=range();
     $("#calendarCanvas").innerHTML=state.calView==="month"?month():state.calView==="week"?week():day();
     $("#calendarList").innerHTML=state.planner.calendars.map(x=>'<article class="calendar-row"><button class="cal-visible '+(x.visible===false?"off":"")+'" data-cal-visible="'+x.id+'" style="--event:'+x.color+'">'+(x.visible===false?"":"✓")+'</button><button class="cal-name" data-cal-edit="'+x.id+'"><i style="--event:'+x.color+'"></i><span><strong>'+escapeHtml(x.name)+'</strong><small>'+calendarSummary(x)+'</small></span></button></article>').join("");
@@ -242,7 +242,7 @@
   }
   function toggleSport(id){const setting=state.planner.sports[id],calendar=sportCalendar(id);setting.enabled=!setting.enabled;if(setting.enabled)calendar.visible=true;else calendar.visible=false;calendarChanged();render();if(setting.enabled)refreshSports(id)}
   $$("[data-cal-view]").forEach(b=>b.onclick=()=>{state.calView=b.dataset.calView;if(state.calView==="day"){delete state.dayScrollPositions[dk(state.calCursor)];delete state.dayScrollManual[dk(state.calCursor)]}localStorage.setItem("opalday-cal-view",state.calView);render()});
-  $$("[data-overlay]").forEach(b=>b.onclick=()=>{state.calOverlays[b.dataset.overlay]=!state.calOverlays[b.dataset.overlay];localStorage.setItem("opalday-cal-overlays",JSON.stringify(state.calOverlays));render()});
+  $$("#calFilterPopover [data-overlay]").forEach(c=>c.onchange=()=>{state.calOverlays[c.dataset.overlay]=c.checked;localStorage.setItem("opalday-cal-overlays",JSON.stringify(state.calOverlays));render()});if($("#calFilterButton")&&!$("#calFilterButton").dataset.wired){$("#calFilterButton").dataset.wired="1";$("#calFilterButton").onclick=e=>{e.stopPropagation();const p=$("#calFilterPopover"),open=p.classList.toggle("hidden");$("#calFilterButton").setAttribute("aria-expanded",String(!open))};document.addEventListener("click",e=>{const p=$("#calFilterPopover");if(p&&!p.classList.contains("hidden")&&!e.target.closest(".cal-filter-wrap")){p.classList.add("hidden");$("#calFilterButton").setAttribute("aria-expanded","false")}})};
   $("#calPrev").onclick=()=>move(-1);$("#calNext").onclick=()=>move(1);$("#calToday").onclick=()=>{state.calCursor=new Date();delete state.dayScrollPositions[dk(state.calCursor)];delete state.dayScrollManual[dk(state.calCursor)];render()};$("#calRange").onclick=openCalendarJump;$("#jumpToMonth").onclick=jumpToMonth;
   function move(n){const d=new Date(state.calCursor);if(state.calView==="month")d.setMonth(d.getMonth()+n);else d.setDate(d.getDate()+n*(state.calView==="week"?7:1));state.calCursor=d;render()}
   $("#addEventButton").onclick=()=>openEvent();$("#newCalendarButton").onclick=()=>openCalendar();
