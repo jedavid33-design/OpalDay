@@ -74,3 +74,7 @@ h1,h2,h3,.item-title-row strong,.event-chip strong,.duration-event strong,.syste
 .calendars-actions{display:flex;justify-content:flex-end;margin:2px 0 10px}
 .sports-section{margin-top:18px;padding-top:16px;border-top:1px solid rgba(127,54,89,.12)}
 .sports-section .eyebrow{margin-bottom:6px}
+
+.more-options-toggle{margin:8px 0 4px;color:var(--wine);font-weight:600}
+.more-options-content.hidden{display:none}
+.more-options-content{padding-top:4px}
