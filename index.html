@@ -50,7 +50,17 @@
 
     <section class="view hidden" id="calendarView">
       <div class="view-switcher" id="calendarViewSwitcher"><button class="selected" data-cal-view="timeline">Timeline</button><button data-cal-view="day">Day</button><button data-cal-view="week">Week</button><button data-cal-view="month">Month</button></div>
-      <div class="overlay-filters" id="overlayFilters"><button data-overlay="events">Events</button><button data-overlay="habits">Habits</button><button data-overlay="medications">Medications</button><button data-overlay="reminders">Reminders</button><button data-overlay="resets">Resets</button><button data-overlay="completed">Completed</button></div>
+      <div class="cal-filter-wrap">
+        <button class="filter-button" id="calFilterButton" aria-haspopup="true" aria-expanded="false"><span>⧩</span> Filters</button>
+        <div class="filter-popover hidden" id="calFilterPopover" role="menu">
+          <label><input type="checkbox" data-overlay="events"><span>Events</span></label>
+          <label><input type="checkbox" data-overlay="habits"><span>Habits</span></label>
+          <label><input type="checkbox" data-overlay="medications"><span>Medications</span></label>
+          <label><input type="checkbox" data-overlay="reminders"><span>Reminders</span></label>
+          <label><input type="checkbox" data-overlay="resets"><span>Resets</span></label>
+          <label><input type="checkbox" data-overlay="completed"><span>Completed</span></label>
+        </div>
+      </div>
       <div class="date-nav"><button id="calPrev">‹</button><button id="calToday">Today</button><button class="range-button" id="calRange" aria-label="Choose month and year"></button><button id="calNext">›</button></div>
       <div class="section-heading"><div><p class="eyebrow">Color-coded</p><h2>Your calendar</h2></div><button class="add-button" id="addEventButton">＋ Event</button></div>
       <div id="calendarCanvas"></div>
