@@ -12,9 +12,9 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" sizes="180x180" href="./app-icon-180.png">
   <link rel="icon" type="image/png" sizes="512x512" href="./app-icon-512.png">
-  <link rel="stylesheet" href="./styles.css">
-  <link rel="stylesheet" href="./calendar.css">
-  <link rel="stylesheet" href="./v04.css">
+  <link rel="stylesheet" href="./styles.css?v=1.5.5">
+  <link rel="stylesheet" href="./calendar.css?v=1.5.5">
+  <link rel="stylesheet" href="./v04.css?v=1.5.5">
 </head>
 <body>
   <main class="app-shell">
@@ -64,8 +64,8 @@
           <label><input type="checkbox" data-overlay="completed"><span>Completed</span></label>
         </div>
       </div>
-      <div class="calendar-manager"><div class="section-heading"><div><p class="eyebrow">Calendars</p><h2>Show & organize</h2></div><div class="heading-actions"><button class="collapse-toggle" id="calListToggle" aria-expanded="false" aria-label="Show calendars">›</button><button class="secondary mini" id="newCalendarButton">＋ New</button></div></div><div id="calendarList" class="collapsible-content collapsed"></div>
-      <div class="import-card sports-card"><div class="collapsible-heading" id="sportsHeading"><div><p class="eyebrow">Sports calendars</p><h2>Your teams, automatically</h2></div><button class="collapse-toggle" id="sportsToggle" aria-expanded="false" aria-label="Show sports calendars">›</button></div><div class="collapsible-content collapsed" id="sportsContent"><p class="modal-note">Choose what to follow. Schedules refresh daily and include new playoff games as they are announced.</p><div id="sportsCalendarList" class="sports-calendar-list"></div><button class="secondary full" id="refreshSports">Refresh sports schedules</button><p class="modal-note" id="sportsStatus">Built-in calendars update automatically.</p><div class="or-divider"><span>other calendars</span></div><label class="field">Import into<select id="icalCalendar"></select></label><label class="file-button">Choose .ics file<input id="icalFile" type="file" accept=".ics,text/calendar"></label></div></div></div>
+      <div class="calendar-manager"><div class="section-heading"><div class="collapse-title" id="calListTitle" role="button" tabindex="0" aria-expanded="false"><p class="eyebrow">Calendars</p><h2>Show & organize</h2></div><button class="secondary mini" id="newCalendarButton">＋ New</button></div><div id="calendarList" class="collapsible-content collapsed"></div>
+      <div class="import-card sports-card"><div class="collapse-title" id="sportsTitle" role="button" tabindex="0" aria-expanded="false"><p class="eyebrow">Sports calendars</p><h2>Your teams, automatically</h2></div><div class="collapsible-content collapsed" id="sportsContent"><p class="modal-note">Choose what to follow. Schedules refresh daily and include new playoff games as they are announced.</p><div id="sportsCalendarList" class="sports-calendar-list"></div><button class="secondary full" id="refreshSports">Refresh sports schedules</button><p class="modal-note" id="sportsStatus">Built-in calendars update automatically.</p><div class="or-divider"><span>other calendars</span></div><label class="field">Import into<select id="icalCalendar"></select></label><label class="file-button">Choose .ics file<input id="icalFile" type="file" accept=".ics,text/calendar"></label></div></div></div>
     </section>
 
     <nav class="bottom-nav five">
@@ -142,9 +142,9 @@
 
   <div class="toast hidden" id="toast"></div>
   <button class="foreground-notification hidden" id="foregroundNotification" aria-live="assertive"><span class="foreground-notification-icon">✦</span><span><strong id="foregroundNotificationTitle">OpalDay reminder</strong><small id="foregroundNotificationBody"></small></span></button>
-  <script src="./config.js"></script>
-  <script src="./app.js"></script>
-  <script src="./calendar.js"></script>
-  <script src="./notifications.js"></script>
+  <script src="./config.js?v=1.5.5"></script>
+  <script src="./app.js?v=1.5.5"></script>
+  <script src="./calendar.js?v=1.5.5"></script>
+  <script src="./notifications.js?v=1.5.5"></script>
 </body>
 </html>
