@@ -7,21 +7,39 @@ medications, reminders, progress, and a resolved daily timeline.
 
 ## This release
 
-App version: **1.5.5**  
-Cloudflare Worker version: **0.12.4**
+App version: **1.6.2**
+Cloudflare Worker version: **1.5.13**
 
-- Recurring parent and checklist state is scoped to the scheduled occurrence
-- Daily, fixed-day weekly, interval, and monthly occurrences begin fresh on
-  their next designated local date even when the prior occurrence was unfinished
-- Flexible weekly goals retain their existing Sunday-through-Saturday period behavior
-- Existing completion timestamps remain the historical compatibility source
-- Occurrence-state sync resolves newer changes without resurrecting cleared state
-- Today and `/widget/today` use matching occurrence and due-date semantics
-- Today event cards show calendar identity once in their metadata, without a
-  duplicate right-side calendar-name badge
+- Cron overlap safety: notification jobs are claimed before sending, so two
+  overlapping scheduler runs can never double-send the same reminder
+- Medication reminders are a true two-channel system: the worker push is the
+  first channel, and the app's 60-second tick is the local backup while it's
+  open — both use the same buckets and tags, so they dedupe instead of doubling
+- Snoozing a medication pauses its whole schedule until the snooze expires,
+  then fires one wake-up nudge (server and local channels agree)
+- One-time reminders that stay open past their due date get a daily
+  carry-forward nudge at their reminder time
+- If iOS/browser notification permission is revoked while push is enabled, the
+  app says so plainly instead of logging "delivered" into the void, and
+  Settings shows when a reminder was last actually opened
+- Shorter-lived push messages: medication alerts expire after 4 hours,
+  everything else after 12
+- Bounded history: completions and occurrence state older than 180 days,
+  dismissed days older than 60, and day reminders/notice logs older than 7
+  days are pruned on both client and server, and 413 sync failures surface
+  instead of silently claiming "Saved on this device"
+- Settings has a Backup card: download the planner as JSON, restore it later
+  (a pre-restore copy is stashed first)
+- Rescheduling a repeating medication moves its time, not its date, and no
+  longer destroys its repeat pattern
+- Deleted sports events stay deleted across feed refreshes; ICS imports honor
+  UTC (Z) and TZID= timestamps instead of treating everything as local
+- The service worker caches same-origin static files only, never API
+  responses; visible tabs get the in-app banner instead of a duplicate OS
+  notification
 
 See `UPLOAD-INSTRUCTIONS.txt` for deployment and verification. The Worker is
-included in `cloudflare-worker-v0.12.4/`.
+`worker.js` in this repo.
 
 ## Data safety
 

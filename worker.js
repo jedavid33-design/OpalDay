@@ -13,13 +13,22 @@ const CACHE_HEADERS = { "Cache-Control": "public, max-age=900" };
 // VAPID keypair, rotated 2026-10-01 after the previous private key was found in
 // the public repo's git history. Subscriptions made with the old key must be
 // re-created in the app (Settings > Notifications) after this deploy.
+// The VAPID *private* key is NOT in this repo. It lives in the
+// VAPID_PRIVATE_JWK worker secret (a JSON private JWK). Only the public
+// half is committed here.
+const WORKER_VERSION = "1.5.13";
 const VAPID = {
   publicKey: "BLMkJDOwSrDjnFC7K7y91tvyabh6AxY1_FA1K-hGXgA1yfDh6npPWJQtYa6mvXFQIdTEcH_dDwvaxw09d-fdJe0",
   x: "syQkM7BKsOOcULsrvL3W2_JpuHoDFjX8UDUr6EZeADU",
   y: "yfDh6npPWJQtYa6mvXFQIdTEcH_dDwvaxw09d-fdJe0",
-  d: "REDACTED",
   subject: "https://jedavid33-design.github.io/OpalDay/"
 };
+function vapidPrivateJwk(env) {
+  try {
+    const jwk = JSON.parse(env.VAPID_PRIVATE_JWK || "");
+    return jwk && jwk.d ? jwk : null;
+  } catch { return null; }
+}
 
 const clean = value => String(value || "").replace(/&#8211;|&ndash;/g, "–").replace(/&#8217;|&rsquo;/g, "’").replace(/&amp;/g, "&").replace(/<[^>]*>/g, "").trim();
 const isoDate = date => [date.getUTCFullYear(), String(date.getUTCMonth() + 1).padStart(2, "0"), String(date.getUTCDate()).padStart(2, "0")].join("-");
@@ -119,19 +128,19 @@ const b64 = value => { let raw = ""; for (const byte of new Uint8Array(value)) r
 async function hmac(key, data) { const cryptoKey = await crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]); return new Uint8Array(await crypto.subtle.sign("HMAC", cryptoKey, data)); }
 async function hkdfExtract(salt, ikm) { return hmac(salt, ikm); }
 async function hkdfExpand(prk, info, length) { const out = await hmac(prk, concat(info, new Uint8Array([1]))); return out.slice(0, length); }
-async function vapidHeaders(endpoint) {
+async function vapidHeaders(endpoint, jwk, ttlSeconds = 43200) {
   const audience = new URL(endpoint).origin, header = b64(te.encode(JSON.stringify({ typ: "JWT", alg: "ES256" }))), payload = b64(te.encode(JSON.stringify({ aud: audience, exp: Math.floor(Date.now() / 1000) + 43200, sub: VAPID.subject })));
-  const key = await crypto.subtle.importKey("jwk", { kty: "EC", crv: "P-256", x: VAPID.x, y: VAPID.y, d: VAPID.d, ext: true }, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const key = await crypto.subtle.importKey("jwk", { ...jwk, ext: true }, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
   const signature = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, te.encode(header + "." + payload));
-  return { Authorization: "vapid t=" + header + "." + payload + "." + b64(signature) + ", k=" + VAPID.publicKey, TTL: "86400" };
+  return { Authorization: "vapid t=" + header + "." + payload + "." + b64(signature) + ", k=" + VAPID.publicKey, TTL: String(ttlSeconds) };
 }
 async function encryptPush(subscription, payload) {
   const clientPublic = unb64(subscription.p256dh), auth = unb64(subscription.auth), pair = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]), clientKey = await crypto.subtle.importKey("raw", clientPublic, { name: "ECDH", namedCurve: "P-256" }, false, []), shared = new Uint8Array(await crypto.subtle.deriveBits({ name: "ECDH", public: clientKey }, pair.privateKey, 256)), serverPublic = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
   const prkKey = await hkdfExtract(auth, shared), ikm = await hkdfExpand(prkKey, concat(te.encode("WebPush: info\0"), clientPublic, serverPublic), 32), salt = crypto.getRandomValues(new Uint8Array(16)), prk = await hkdfExtract(salt, ikm), cek = await hkdfExpand(prk, te.encode("Content-Encoding: aes128gcm\0"), 16), nonce = await hkdfExpand(prk, te.encode("Content-Encoding: nonce\0"), 12), aes = await crypto.subtle.importKey("raw", cek, "AES-GCM", false, ["encrypt"]), plaintext = concat(te.encode(JSON.stringify(payload)), new Uint8Array([2])), ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, aes, plaintext)), size = new Uint8Array(4);
   new DataView(size.buffer).setUint32(0, 4096); return concat(salt, size, new Uint8Array([serverPublic.length]), serverPublic, ciphertext);
 }
-async function sendPush(row, payload) {
-  const subscription = { p256dh: row.p256dh, auth: row.auth }, body = await encryptPush(subscription, payload), headers = await vapidHeaders(row.endpoint);
+async function sendPush(row, payload, jwk, ttlSeconds) {
+  const subscription = { p256dh: row.p256dh, auth: row.auth }, body = await encryptPush(subscription, payload), headers = await vapidHeaders(row.endpoint, jwk, ttlSeconds);
   return fetch(row.endpoint, { method: "POST", headers: { ...headers, "Content-Encoding": "aes128gcm", "Content-Type": "application/octet-stream" }, body });
 }
 function zoneParts(date, timeZone) { const formatter = new Intl.DateTimeFormat("en-CA", { timeZone, hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", weekday: "short" }), p = Object.fromEntries(formatter.formatToParts(date).filter(x => x.type !== "literal").map(x => [x.type, x.value])); return { year: +p.year, month: +p.month, day: +p.day, hour: +p.hour % 24, minute: +p.minute, weekday: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(p.weekday) }; }
@@ -600,7 +609,7 @@ function serverMergeEvents(remote = [], local = []) {
 function serverMergePlanners(existing, incoming) {
   const deletedItemIds = [...new Set([...(existing.deletedItemIds || []), ...(incoming.deletedItemIds || [])])];
   const deletedEventIds = [...new Set([...(existing.deletedEventIds || []), ...(incoming.deletedEventIds || [])])];
-  return {
+  return serverPrunePlanner({
     ...existing, ...incoming,
     items: serverMergeById(existing.items || [], incoming.items || []).filter(x => x && x.id && !deletedItemIds.includes(x.id)),
     events: serverMergeEvents(existing.events || [], incoming.events || []).filter(x => x && x.id && !deletedEventIds.includes(x.id)),
@@ -611,15 +620,47 @@ function serverMergePlanners(existing, incoming) {
     dismissedAllDayOccurrences: [...new Set([...(existing.dismissedAllDayOccurrences || []), ...(incoming.dismissedAllDayOccurrences || [])])],
     deletedFeedUids: [...new Set([...(existing.deletedFeedUids || []), ...(incoming.deletedFeedUids || [])])],
     deletedItemIds, deletedEventIds,
+    deletedSportUids: [...new Set([...(existing.deletedSportUids || []), ...(incoming.deletedSportUids || [])])],
     updatedAt: [existing.updatedAt, incoming.updatedAt].filter(Boolean).sort().at(-1) || new Date().toISOString()
-  };
+  });
+}
+// Server-side bounded-history prune (M2/m13): same windows as the client so
+// the merged planner the server stores converges to the same shape — the
+// server union can never resurrect entries the client already pruned.
+function serverPrunePlanner(p) {
+  const nowMs = Date.now(), c180 = nowMs - 180 * 86400000, c60 = nowMs - 60 * 86400000, c7 = nowMs - 7 * 86400000;
+  const keyDate = s => { const m = String(s || "").match(/(\d{4})-(\d{2})(?:-(\d{2}))?/); return m ? Date.UTC(+m[1], +m[2] - 1, +(m[3] || 1)) : NaN; };
+  for (const item of p.items || []) {
+    if (Array.isArray(item.completions)) item.completions = item.completions.filter(v => { const t = new Date(v).getTime(); return Number.isNaN(t) || t >= c180; });
+    if (item.occurrenceStates) for (const k of Object.keys(item.occurrenceStates)) { const t = keyDate(k.split(":").slice(1).join(":")); if (!Number.isNaN(t) && t < c180) delete item.occurrenceStates[k]; }
+    if (item.noticeLog) for (const k of Object.keys(item.noticeLog)) { const t = keyDate(k); if (!Number.isNaN(t) && t < c7) delete item.noticeLog[k]; }
+  }
+  if (p.dayReminders) for (const k of Object.keys(p.dayReminders)) { const t = keyDate(k); if (!Number.isNaN(t) && t < c7) delete p.dayReminders[k]; }
+  if (Array.isArray(p.dismissedAllDayOccurrences)) p.dismissedAllDayOccurrences = p.dismissedAllDayOccurrences.filter(k => { const t = keyDate(String(k).split("@")[1]); return Number.isNaN(t) || t >= c60; });
+  if (Array.isArray(p.deletedSportUids) && p.deletedSportUids.length > 500) p.deletedSportUids = p.deletedSportUids.slice(-500);
+  return p;
 }
 
 function collectJobs(planner, now, timeZone) {
   const parts = zoneParts(now, timeZone), today = keyFrom(parts), tomorrow = plusLocalDays(today, 1), yesterday = plusLocalDays(today, -1), nowStamp = fakeStamp(parts), dayReminders = planner.dayReminders?.[today] || { items: [], events: [] }, jobs = [];
+  const MED_TTL = 14400, OTHER_TTL = 43200;
   for (const item of planner.items || []) {
     const time = item.notification?.time || item.fixedTime || "12:00", medication = item.kind === "medication", enabled = !!item.notification?.enabled,
       offsets = medication && enabled ? [-60, 0, 30, 60, 120, 180, 240, 300, 360, 420, 480] : [0];
+    // A snoozed medication pauses its whole server schedule until the snooze
+    // expires; the moment it expires (within this 5-minute window) a single
+    // wake-up nudge fires instead of the normal buckets. A snooze that is
+    // older than 15 minutes is treated as stale so it can never suppress the
+    // normal schedule forever.
+    const snoozeMs = medication && item.snoozedUntil ? Date.parse(item.snoozedUntil) : NaN;
+    if (Number.isFinite(snoozeMs) && snoozeMs > now.getTime() - 15 * 60000) {
+      if (snoozeMs > now.getTime()) continue;
+      const wakeDeltaMin = Math.floor((now.getTime() - snoozeMs) / 60000);
+      if (wakeDeltaMin >= 0 && wakeDeltaMin < 5 && !periodComplete(item, today, timeZone) && (enabled || (planner.dayReminders?.[today]?.items || []).includes(item.id))) {
+        jobs.push({ id: "item:" + item.id + ":" + today + ":snoozed-wake", title: "Medication due now", body: item.title + " (snoozed reminder)", tag: "opalday-" + item.id + "-snoozed-wake", url: "./?from=push", ttl: MED_TTL });
+      }
+      continue;
+    }
     // Medications are evaluated against both today and yesterday so the overdue
     // escalation tail (up to +480 min) survives the midnight date roll. Job ids
     // anchor to the occurrence's due date, keeping notification_log dedupe stable.
@@ -630,12 +671,21 @@ function collectJobs(planner, now, timeZone) {
       for (const offset of offsets) if (dueNow(nowStamp, dateKey, time, offset)) {
         const bucket = offset < 0 ? "early" : offset === 0 ? "due" : "overdue-" + offset,
           title = medication ? (offset < 0 ? "Medication due in one hour" : offset === 0 ? "Medication due now" : "Medication overdue") : "OpalDay reminder";
-        jobs.push({ id: "item:" + item.id + ":" + dateKey + ":" + bucket, title, body: item.title, tag: "opalday-" + item.id + "-" + bucket, url: "./" });
+        jobs.push({ id: "item:" + item.id + ":" + dateKey + ":" + bucket, title, body: item.title, tag: "opalday-" + item.id + "-" + bucket, url: "./?from=push", ttl: medication ? MED_TTL : OTHER_TTL });
+      }
+    }
+    // One-time reminders that are still open after their due date get one
+    // carry-forward nudge per day at their reminder time, matching the
+    // in-app carry-forward display.
+    if (!medication && item.kind === "reminder" && item.hardDate && item.hardDate < today && !reminderCompletedEver(item)) {
+      const bulk = (planner.dayReminders?.[today]?.items || []).includes(item.id);
+      if ((enabled || bulk) && dueNow(nowStamp, today, time, 0)) {
+        jobs.push({ id: "item:" + item.id + ":" + today + ":overdue-carry", title: "Reminder overdue", body: item.title, tag: "opalday-" + item.id + "-overdue-carry", url: "./?from=push", ttl: OTHER_TTL });
       }
     }
   }
-  for (const event of planner.events || []) { const individual=!!event.notification?.enabled,bulk=dayReminders.events?.includes(event.id);if(!individual&&!bulk)continue;const candidates=bulk&&!individual?[today]:[today,tomorrow];for(const occurrence of candidates){const occurrenceStart=eventOccurrenceStart(event,occurrence);if(!occurrenceStart)continue;if(individual&&event.notification?.scope==="once"&&occurrence!==event.notification?.occurrenceDate)continue;if(individual&&event.notification?.days!=="daily"&&occurrence!==occurrenceStart)continue;const legacy=individual&&!event.notification?.time,reminderTime=individual?(event.notification?.time||event.time||"12:00"):(event.time||"12:00"),lead=legacy?Number(event.notification?.leadMinutes||0):0;if(dueNow(nowStamp,occurrence,reminderTime,-lead)){const body=legacy?(lead===1440?"Tomorrow":lead===60?"In one hour":lead===15?"In 15 minutes":event.time?"Starting now":"All day"):(event.time?"Starts at "+clockLabel(event.time):"Reminder for today");jobs.push({id:"event:"+event.id+":"+occurrence+":"+(legacy?"lead-"+lead:"time-"+reminderTime),title:legacy&&lead?"Upcoming: "+event.title:event.title,body,tag:"opalday-event-"+event.id+"-"+occurrence,url:"./"})}}}
-  for (const custom of dayReminders.custom || []) if (dueNow(nowStamp, today, custom.time || "12:00", 0)) jobs.push({ id: "custom:" + custom.id + ":" + today, title: custom.title, body: custom.time ? "Reminder for today" : "All day", tag: "opalday-custom-" + custom.id + "-" + today, url: "./" });
+  for (const event of planner.events || []) { const individual=!!event.notification?.enabled,bulk=dayReminders.events?.includes(event.id);if(!individual&&!bulk)continue;const candidates=bulk&&!individual?[today]:[today,tomorrow];for(const occurrence of candidates){const occurrenceStart=eventOccurrenceStart(event,occurrence);if(!occurrenceStart)continue;if(individual&&event.notification?.scope==="once"&&occurrence!==event.notification?.occurrenceDate)continue;if(individual&&event.notification?.days!=="daily"&&occurrence!==occurrenceStart)continue;const legacy=individual&&!event.notification?.time,reminderTime=individual?(event.notification?.time||event.time||"12:00"):(event.time||"12:00"),lead=legacy?Number(event.notification?.leadMinutes||0):0;if(dueNow(nowStamp,occurrence,reminderTime,-lead)){const body=legacy?(lead===1440?"Tomorrow":lead===60?"In one hour":lead===15?"In 15 minutes":event.time?"Starting now":"All day"):(event.time?"Starts at "+clockLabel(event.time):"Reminder for today");jobs.push({id:"event:"+event.id+":"+occurrence+":"+(legacy?"lead-"+lead:"time-"+reminderTime),title:legacy&&lead?"Upcoming: "+event.title:event.title,body,tag:"opalday-event-"+event.id+"-"+occurrence,url:"./?from=push",ttl:OTHER_TTL})}}}
+  for (const custom of dayReminders.custom || []) if (dueNow(nowStamp, today, custom.time || "12:00", 0)) jobs.push({ id: "custom:" + custom.id + ":" + today, title: custom.title, body: custom.time ? "Reminder for today" : "All day", tag: "opalday-custom-" + custom.id + "-" + today, url: "./?from=push", ttl: OTHER_TTL });
   return jobs;
 }
 async function runNotifications(env) {
@@ -643,9 +693,24 @@ async function runNotifications(env) {
   // apart from "nothing due". last_cron_run is only written on a clean pass.
   const runStart = new Date().toISOString();
   await env.DB.prepare("CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT)").run();
+  // Claim-before-send dedupe (C7): the notification_log row is inserted as
+  // in-flight *before* any push is sent, so two overlapping cron runs cannot
+  // both pass the check for the same job. The row's status carries a random
+  // claim id; only the run that owns the claim sends.
+  await env.DB.prepare("CREATE TABLE IF NOT EXISTS notification_log(id TEXT PRIMARY KEY, sent_at TEXT, status TEXT DEFAULT 'sent')").run();
+  try { await env.DB.prepare("ALTER TABLE notification_log ADD COLUMN status TEXT DEFAULT 'sent'").run(); } catch {}
+  await env.DB.prepare("UPDATE notification_log SET status='sent' WHERE status IS NULL").run();
   const setMeta = (key, value) => env.DB.prepare("INSERT INTO meta(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(key, value).run();
   await setMeta("last_cron_run_start", runStart);
   let jobsSent = 0, jobsEvaluated = 0;
+  const signingKey = vapidPrivateJwk(env);
+  if (!signingKey) {
+    await setMeta("last_cron_error", "VAPID_PRIVATE_JWK secret is missing — pushes not sent");
+    await setMeta("last_cron_run", new Date().toISOString());
+    await setMeta("last_cron_jobs_evaluated", "0");
+    await setMeta("last_cron_jobs_sent", "0");
+    return;
+  }
   const { results: subscriptions = [] } = await env.DB.prepare("SELECT endpoint, sync_code, p256dh, auth, timezone FROM push_subscriptions").all(), groups = new Map();
   for (const row of subscriptions) { const key = row.sync_code + "|" + row.timezone; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(row); }
   for (const [groupKey, rows] of groups) {
@@ -661,12 +726,34 @@ async function runNotifications(env) {
       seen.add(job.id); jobs.push(job);
     }
     jobsEvaluated += jobs.length;
-    for (const job of jobs) { const logId = code + "|" + (timeZone || "America/New_York") + "|" + job.id, prior = await env.DB.prepare("SELECT id FROM notification_log WHERE id = ?").bind(logId).first(); if (prior) continue; let delivered = false; for (const row of rows) { try { const response = await sendPush(row, job); if (response.ok) delivered = true; else if (response.status === 404 || response.status === 410) await env.DB.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").bind(row.endpoint).run(); } catch {} } if (delivered) { await env.DB.prepare("INSERT OR IGNORE INTO notification_log (id, sent_at) VALUES (?, CURRENT_TIMESTAMP)").bind(logId).run(); jobsSent++; } }
+    for (const job of jobs) {
+      const logId = code + "|" + (timeZone || "America/New_York") + "|" + job.id;
+      const claim = "inflight:" + crypto.randomUUID();
+      await env.DB.prepare("INSERT OR IGNORE INTO notification_log(id, sent_at, status) VALUES(?, CURRENT_TIMESTAMP, ?)").bind(logId, claim).run();
+      const owner = await env.DB.prepare("SELECT status FROM notification_log WHERE id = ?").bind(logId).first();
+      if (!owner || owner.status !== claim) continue; // another run owns this job
+      let delivered = false;
+      for (const row of rows) {
+        try {
+          const response = await sendPush(row, job, signingKey, job.ttl || 43200);
+          if (response.ok) delivered = true;
+          else if (response.status === 404 || response.status === 410) await env.DB.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").bind(row.endpoint).run();
+        } catch {}
+      }
+      if (delivered) {
+        await env.DB.prepare("UPDATE notification_log SET status='sent', sent_at=CURRENT_TIMESTAMP WHERE id=? AND status=?").bind(logId, claim).run();
+        jobsSent++;
+      } else {
+        // Release the claim so the next run can retry within the due window.
+        await env.DB.prepare("DELETE FROM notification_log WHERE id=? AND status=?").bind(logId, claim).run();
+      }
+    }
   }
   await env.DB.prepare("DELETE FROM notification_log WHERE sent_at < datetime('now', '-45 days')").run();
   await setMeta("last_cron_run", new Date().toISOString());
   await setMeta("last_cron_jobs_evaluated", String(jobsEvaluated));
   await setMeta("last_cron_jobs_sent", String(jobsSent));
+  await setMeta("last_cron_error", "");
 }
 
 export default {
@@ -674,17 +761,18 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: HEADERS });
     const url = new URL(request.url);
     if (url.pathname === "/health") {
-      let lastCronRun = null, lastCronRunStart = null, lastCronJobsSent = null, lastCronJobsEvaluated = null;
+      let lastCronRun = null, lastCronRunStart = null, lastCronJobsSent = null, lastCronJobsEvaluated = null, lastCronError = null;
       try {
-        const { results } = await env.DB.prepare("SELECT key, value FROM meta WHERE key IN ('last_cron_run','last_cron_run_start','last_cron_jobs_sent','last_cron_jobs_evaluated')").all();
+        const { results } = await env.DB.prepare("SELECT key, value FROM meta WHERE key IN ('last_cron_run','last_cron_run_start','last_cron_jobs_sent','last_cron_jobs_evaluated','last_cron_error')").all();
         for (const row of results || []) {
           if (row.key === "last_cron_run") lastCronRun = row.value;
           else if (row.key === "last_cron_run_start") lastCronRunStart = row.value;
           else if (row.key === "last_cron_jobs_sent") lastCronJobsSent = row.value;
           else if (row.key === "last_cron_jobs_evaluated") lastCronJobsEvaluated = row.value;
+          else if (row.key === "last_cron_error") lastCronError = row.value;
         }
       } catch {}
-      return json({ ok: true, app: "OpalDay", version: "1.5.12", notifications: true, reminderTimes: "individual-first", recurringEvents: "advanced", habitOccurrences: true, widgetToday: true, widgetSchema: 2, widgetSlots: "display-safe", widgetUnifiedItems: true, lastCronRun, lastCronRunStart, lastCronJobsSent, lastCronJobsEvaluated });
+      return json({ ok: true, app: "OpalDay", version: WORKER_VERSION, notifications: true, reminderTimes: "individual-first", recurringEvents: "advanced", habitOccurrences: true, widgetToday: true, widgetSchema: 2, widgetSlots: "display-safe", widgetUnifiedItems: true, lastCronRun, lastCronRunStart, lastCronJobsSent, lastCronJobsEvaluated, lastCronError });
     }
     if (url.pathname === "/push/vapid-key" && request.method === "GET") return json({ publicKey: VAPID.publicKey });
     if (url.pathname === "/push/subscribe" && request.method === "POST") {
@@ -694,6 +782,28 @@ export default {
       return json({ ok: true });
     }
     if (url.pathname === "/push/subscribe" && request.method === "DELETE") { const payload = await request.json(); if (payload.endpoint) await env.DB.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").bind(payload.endpoint).run(); return json({ ok: true }); }
+    // Push-open acknowledgements (C3 delivery loop): the app POSTs here when
+    // the user taps a push reminder, so Settings can show when reminders last
+    // actually reached her — a "delivered" worker log is meaningless if the OS
+    // drops the push (e.g. permissions revoked on iOS).
+    if (url.pathname === "/push/ack" && request.method === "POST") {
+      let payload; try { payload = await request.json(); } catch { payload = {}; }
+      const endpoint = String(payload.endpoint || "");
+      if (!endpoint) return json({ error: "A push endpoint is required." }, 400);
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS push_ack(endpoint TEXT PRIMARY KEY, last_ack TEXT)").run();
+      await env.DB.prepare("INSERT INTO push_ack(endpoint, last_ack) VALUES(?, CURRENT_TIMESTAMP) ON CONFLICT(endpoint) DO UPDATE SET last_ack=CURRENT_TIMESTAMP").bind(endpoint).run();
+      return json({ ok: true });
+    }
+    if (url.pathname === "/push/ack" && request.method === "GET") {
+      const endpoint = url.searchParams.get("endpoint") || "";
+      if (!endpoint) return json({ error: "A push endpoint is required." }, 400);
+      let lastAck = null;
+      try {
+        const row = await env.DB.prepare("SELECT last_ack FROM push_ack WHERE endpoint = ?").bind(endpoint).first();
+        lastAck = row?.last_ack || null;
+      } catch {}
+      return json({ lastAck });
+    }
     if (url.pathname === "/sports" && request.method === "GET") {
       const id = url.searchParams.get("id") || "";
       try {
@@ -725,7 +835,18 @@ export default {
     if (request.method === "GET") {
       const code = (url.searchParams.get("code") || "").toUpperCase();
       if (!validCode(code)) return json({ error: "A valid sync code is required." }, 400);
+      // m9: throttle sync-code guessing — count failed lookups per IP and
+      // 429 after 10 failures in 10 minutes.
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS sync_attempts(ip TEXT, at TEXT)").run();
       const row = await env.DB.prepare("SELECT data, version, updated_at FROM planner_sync WHERE sync_code = ?").bind(code).first();
+      if (!row) {
+        const ip = request.headers.get("cf-connecting-ip") || "unknown";
+        await env.DB.prepare("DELETE FROM sync_attempts WHERE at < datetime('now', '-10 minutes')").run();
+        await env.DB.prepare("INSERT INTO sync_attempts(ip, at) VALUES(?, CURRENT_TIMESTAMP)").bind(ip).run();
+        const failures = await env.DB.prepare("SELECT COUNT(*) AS count FROM sync_attempts WHERE ip = ? AND at >= datetime('now', '-10 minutes')").bind(ip).first();
+        if ((failures?.count || 0) > 10) return json({ error: "Too many attempts. Try again later." }, 429);
+        return json({ error: "Sync code not found." }, 404);
+      }
       if (!row) return json({ error: "Sync code not found." }, 404);
       return json({ data: JSON.parse(row.data), version: row.version, updatedAt: row.updated_at });
     }

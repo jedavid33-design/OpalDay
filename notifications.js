@@ -41,7 +41,15 @@
     }
     if(!supported){status.textContent="Install OpalDay on your Home Screen first";button.textContent="Notifications unavailable";button.disabled=true}
     else if(permission==="denied"){status.textContent="Blocked in iPhone or iPad settings";button.textContent="Permission blocked";button.disabled=true}
-    else if(permission==="granted"&&connected){status.textContent="Ready — individual reminders remain opt-in"+freshness;button.textContent="Notifications enabled";button.disabled=true}
+    else if(permission==="granted"&&connected){
+      let tapNote="";
+      try{
+        const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();
+        let latest=localStorage.getItem("opalday-last-push-tap");
+        if(sub&&workerUrl()){const r=await fetch(workerUrl()+"/push/ack?endpoint="+encodeURIComponent(sub.endpoint));if(r.ok)latest=[latest,(await r.json()).lastAck].filter(Boolean).sort().at(-1)}
+        tapNote=latest?" · last reminder opened "+new Date(latest).toLocaleString([],{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):" · no reminder opened yet";
+      }catch{}
+      status.textContent="Ready — individual reminders remain opt-in"+freshness+tapNote;button.textContent="Notifications enabled";button.disabled=true}
     else if(permission==="granted"){status.textContent="Permission granted — finish connecting";button.textContent="Finish notification setup"}
     else{status.textContent="Off until you enable them";button.textContent="Enable notifications"}
   }
@@ -49,10 +57,35 @@
   function updateTodayButton(){const button=$("#todayRemindersButton");if(!button)return;const bucket=reminderStore()[todayKey()],count=(bucket?.items?.length||0)+(bucket?.events?.length||0)+(bucket?.custom?.length||0);button.classList.toggle("active",count>0);button.classList.toggle("quiet",!count);button.querySelector("strong").textContent=count?count+" reminder"+(count===1?"":"s")+" set for today":"Set reminders for today";button.querySelector("small").textContent=count?"Tap to review or clear them.":"Notifications are off until you choose them."}
   let foregroundTimer;
   function showForegroundNotification(data={}){const banner=$("#foregroundNotification");if(!banner)return;$("#foregroundNotificationTitle").textContent=data.title||"OpalDay reminder";$("#foregroundNotificationBody").textContent=data.body||"You have something coming up.";banner.classList.remove("hidden");clearTimeout(foregroundTimer);foregroundTimer=setTimeout(()=>banner.classList.add("hidden"),9000)}
+  const recentPushTags={};
+  // C3: if the OS/browser permission was revoked while push is still enabled,
+  // the worker would log "delivered" into the void. Surface a banner, and in
+  // installed-PWA mode quietly drop the dead subscription (plain Safari tabs
+  // can share localStorage and must not unsubscribe other contexts). PUSH_KEY
+  // stays so re-enabling re-subscribes automatically.
+  function checkPermissionState(){
+    if(!("Notification"in window))return;
+    if(localStorage.getItem(PUSH_KEY)==="true"&&Notification.permission==="denied"){
+      showForegroundNotification({title:"Notifications blocked",body:"OpalDay reminders can't reach you until you turn notifications back on in iPhone/iPad Settings."});
+      const standalone=window.navigator.standalone===true||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches);
+      if(standalone&&workerUrl())(async()=>{try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub)await fetch(workerUrl()+"/push/subscribe",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({endpoint:sub.endpoint})})}catch{}})();
+    }
+  }
+  // m11: travelling without a reload leaves the worker scheduling against a
+  // stale timezone — re-POST the subscription with the current tz when the
+  // page becomes visible again.
+  async function refreshPushTimezone(){
+    try{
+      if(localStorage.getItem(PUSH_KEY)!=="true"||!("Notification"in window)||Notification.permission!=="granted"||!workerUrl())return;
+      const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();
+      if(!sub||!state.syncCode)return;
+      await fetch(workerUrl()+"/push/subscribe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:state.syncCode,subscription:sub.toJSON(),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||"America/New_York"})});
+    }catch{}
+  }
   function showTodaySheet(){const entries=todayEntries().all,bucket=reminderStore()[todayKey()]||{items:[],events:[],custom:[]};$("#todayReminderList").innerHTML=entries.length?entries.map(x=>'<div class="today-reminder-row"><span><strong>'+escapeHtml(x.title)+'</strong><small>'+escapeHtml(x.kind)+'</small></span><b>'+prettyTime(x.time)+'</b></div>').join(""):'<div class="small-empty">Nothing needs a reminder today.</div>';$("#enableTodayReminders").disabled=!entries.length;$("#clearTodayReminders").disabled=!((bucket.items||[]).length||(bucket.events||[]).length||(bucket.custom||[]).length);openModal("#todayRemindersModal")}
   async function enableToday(){const entries=todayEntries();if(!entries.all.length)return;if(!await ensurePush())return;const bucket=dayBucket();bucket.items=[...new Set(entries.items.filter(i=>!i.notification?.enabled).map(x=>x.id))];bucket.events=[...new Set(entries.events.filter(e=>e.source!=="builtin"&&!e.notification?.enabled).map(x=>x.id))];bucket.custom=entries.events.filter(e=>e.source==="builtin").map(e=>({id:e.id,title:e.title,time:reminderTime(e)}));closeModals();changed();updateTodayButton();toast("Today’s reminders are on")}
   function clearToday(){delete reminderStore()[todayKey()];closeModals();changed();updateTodayButton();toast("Today’s reminders cleared")}
-  function notificationPanel(i){const bucket=reminderStore()[todayKey()]||{items:[]},todayOnly=bucket.items.includes(i.id)&&!i.notification?.enabled,enabled=!!i.notification?.enabled||todayOnly,time=i.notification?.time||i.fixedTime||"12:00";return'<div class="notification-editor item-notification-editor"><div><strong>Notification</strong><span>Off unless you enable it</span></div><label class="switch-row"><input id="itemNotify" type="checkbox" '+(enabled?'checked':'')+'> Remind me</label><div class="notification-wheel-field"><span>Reminder time</span>'+wheelHtml("itemNotify",time)+'<small>Five-minute increments</small></div><label>Apply to<select id="itemNotifyScope"><option value="every" '+(!todayOnly?'selected':'')+'>Every occurrence</option><option value="today" '+(todayOnly?'selected':'')+'>Today only</option></select></label><button class="secondary full notification-save" id="saveItemNotification">Save notification</button>'+(i.kind==="medication"?'<p class="modal-note notification-note">Medication alerts include one hour before, due now, and overdue follow-ups until marked taken.</p>':'')+'</div>'}
+  function notificationPanel(i){const bucket=reminderStore()[todayKey()]||{items:[]},todayOnly=bucket.items.includes(i.id)&&!i.notification?.enabled,enabled=!!i.notification?.enabled||todayOnly,time=i.notification?.time||i.fixedTime||"12:00";return'<div class="notification-editor item-notification-editor"><div><strong>Notification</strong><span>Off unless you enable it</span></div><label class="switch-row"><input id="itemNotify" type="checkbox" '+(enabled?'checked':'')+'> Remind me</label><div class="notification-wheel-field"><span>Reminder time</span>'+wheelHtml("itemNotify",time)+'<small>Five-minute increments</small></div><label>Apply to<select id="itemNotifyScope"><option value="every" '+(!todayOnly?'selected':'')+'>Every occurrence</option><option value="today" '+(todayOnly?'selected':'')+'>Today only</option></select></label><button class="secondary full notification-save" id="saveItemNotification">Save notification</button>'+(i.kind==="medication"?'<p class="modal-note notification-note">Medication alerts include one hour before, due now, and overdue follow-ups until marked taken. Chained follow-ups (a second nudge only after you check off the first) aren\'t scheduled in-app.</p>':'')+'</div>'}
   const originalShowItem=showItem;
   showItem=function(id){originalShowItem(id);const i=state.planner.items.find(x=>x.id===id);if(!i)return;$("#itemModalBody").insertAdjacentHTML("beforeend",notificationPanel(i));$("#saveItemNotification").onclick=()=>saveItemNotification(i)};
   async function saveItemNotification(i){const enabled=$("#itemNotify").checked,scope=$("#itemNotifyScope").value,time=readTimeWheel("itemNotify");if(enabled&&!await ensurePush())return;const bucket=dayBucket();if(scope==="today"){i.notification={...(i.notification||{}),enabled:false,time};bucket.items=enabled?[...new Set([...bucket.items,i.id])]:bucket.items.filter(id=>id!==i.id)}else{i.notification={enabled,time};bucket.items=bucket.items.filter(id=>id!==i.id)}closeModals();changed();updateTodayButton();toast(enabled?"Notification saved":"Notification off")}
@@ -60,8 +93,8 @@
   $("#saveEvent").onclick=async()=>{if($("#eventNotify").checked&&!await ensurePush())return;originalSaveEvent()};
   $("#todayRemindersButton").onclick=showTodaySheet;$("#enableTodayReminders").onclick=enableToday;$("#clearTodayReminders").onclick=clearToday;$("#enableNotificationsSettings").onclick=enableFromSettings;
   $("#foregroundNotification").onclick=()=>$("#foregroundNotification").classList.add("hidden");
-  if("serviceWorker"in navigator)navigator.serviceWorker.addEventListener("message",event=>{if(event.data?.type==="OPALDAY_FOREGROUND_NOTIFICATION")showForegroundNotification(event.data.data)});
+  if("serviceWorker"in navigator)navigator.serviceWorker.addEventListener("message",event=>{if(event.data?.type==="OPALDAY_FOREGROUND_NOTIFICATION"){if(event.data.data?.tag)recentPushTags[event.data.data.tag]=Date.now();showForegroundNotification(event.data.data)}});
   const previousRender=render;render=function(){previousRender();updateTodayButton()};
-  window.OpalDayNotifications={updateSettings,showForegroundNotification};updateTodayButton();updateSettings();
-  if(localStorage.getItem(PUSH_KEY)==="true"&&"Notification"in window&&Notification.permission==="granted")setTimeout(()=>ensurePush(),1800);
+  window.OpalDayNotifications={updateSettings,showForegroundNotification,checkPermissionState,refreshPushTimezone,recentPushTags};updateTodayButton();updateSettings();checkPermissionState();
+  if(localStorage.getItem(PUSH_KEY)==="true"&&"Notification"in window&&Notification.permission==="granted")setTimeout(()=>{if(Notification.permission==="granted")ensurePush()},1800);
 })();
