@@ -10,6 +10,9 @@ const validCode = code => typeof code === "string" && /^[A-Z2-9]{8}$/.test(code)
 // "ABCD EFGH" resolves to the same stored eight-character sync code.
 const normalizeCode = code => String(code || "").toUpperCase().replace(/[^A-Z2-9]/g, "").slice(0, 8);
 const CACHE_HEADERS = { "Cache-Control": "public, max-age=900" };
+// VAPID keypair, rotated 2026-10-01 after the previous private key was found in
+// the public repo's git history. Subscriptions made with the old key must be
+// re-created in the app (Settings > Notifications) after this deploy.
 const VAPID = {
   publicKey: "BLMkJDOwSrDjnFC7K7y91tvyabh6AxY1_FA1K-hGXgA1yfDh6npPWJQtYa6mvXFQIdTEcH_dDwvaxw09d-fdJe0",
   x: "syQkM7BKsOOcULsrvL3W2_JpuHoDFjX8UDUr6EZeADU",
@@ -192,6 +195,22 @@ function widgetDateLabels(key) {
     short: new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" }).format(date),
     long: new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "long", month: "long", day: "numeric" }).format(date)
   };
+}
+function monthCalendarFor(key) {
+  // Mini month grid for the widget: 42 cells (6x7), Sunday-first. Today gets a
+  // Unicode circled number (Widgy has no conditional formatting).
+  // 1-20: U+2460-U+2473, 21-31: U+3251-U+325B.
+  const circled = n => String.fromCodePoint(n <= 20 ? 0x2460 + n - 1 : 0x3251 + n - 21);
+  const [year, month, day] = key.split("-").map(Number);
+  const startDay = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const label = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "long", year: "numeric" }).format(new Date(Date.UTC(year, month - 1, 1)));
+  const days = [];
+  for (let i = 0; i < 42; i++) {
+    const n = i - startDay + 1;
+    days.push({ label: n < 1 || n > daysInMonth ? "" : (n === day ? circled(n) : String(n)) });
+  }
+  return { label, days };
 }
 function clockMinutes(value, fallback = 0) {
   if (!/^\d{1,2}:\d{2}$/.test(String(value || ""))) return fallback;
@@ -438,24 +457,34 @@ function buildWidgetToday(planner, now, timeZone, limits = {}) {
     })
   };
   // One unified "what's on today" list: all-day events, then timed items in
-  // chronological order, then untimed meds / habits / reminders. No separate
-  // habits-vs-events sections.
-  const unifiedItems = events.filter(event => event.allDay).map(event => ({
-    id: event.occurrenceId, kind: "event", title: event.title,
-    timeLabel: "All day", startTimeLabel: "All day", status: "all-day"
-  })).concat(timedFeed.map(item => ({
-    id: item.id, kind: item.kind, title: item.title,
-    timeLabel: item.timeLabel, startTimeLabel: item.startTimeLabel, status: item.status
-  }))).concat(medications.filter(item => !item.time).map(item => ({
+  // chronological order, then a single untimed ("Anytime") item. Only the
+  // first anytime item takes a card; the rest queue in overflow so that
+  // completing one reveals the next. No separate habits-vs-events sections.
+  const anytimeItems = medications.filter(item => !item.time).map(item => ({
     id: item.id, kind: "medication", title: item.title,
     timeLabel: "Anytime", startTimeLabel: null, status: item.status
-  }))).concat(widgetHabitSelection.filter(item => !item.time).map(item => ({
+  })).concat(widgetHabitSelection.filter(item => !item.time).map(item => ({
     id: item.id, kind: "habit", title: item.title,
     timeLabel: "Anytime", startTimeLabel: null, status: "due"
   }))).concat(reminders.filter(item => !item.time).map(item => ({
     id: item.id, kind: "reminder", title: item.title,
     timeLabel: "Anytime", startTimeLabel: null, status: "due"
   })));
+  const unifiedItems = events.filter(event => event.allDay).map(event => ({
+    id: event.occurrenceId, kind: "event", title: event.title,
+    timeLabel: "All day", startTimeLabel: "All day", status: "all-day"
+  })).concat(timedFeed.map(item => ({
+    id: item.id, kind: item.kind, title: item.title,
+    timeLabel: item.timeLabel, startTimeLabel: item.startTimeLabel, status: item.status
+  }))).concat(anytimeItems.slice(0, 1));
+  const queuedAnytimeCount = Math.max(0, anytimeItems.length - 1);
+  // Pad the unified list to the full requested count so Widgy never shows its
+  // "-" missing-data placeholder. The first empty slot carries a friendly
+  // "no more" note; any further slots stay quietly blank.
+  const itemOverflowCount = Math.max(0, unifiedItems.length - itemLimit) + queuedAnytimeCount;
+  const paddedItems = unifiedItems.slice(0, itemLimit);
+  if (paddedItems.length < itemLimit) paddedItems.push({ id: null, kind: "note", title: "No more events today", timeLabel: "", startTimeLabel: "", status: "" });
+  while (paddedItems.length < itemLimit) paddedItems.push({ id: null, kind: "", title: "", timeLabel: "", startTimeLabel: "", status: "" });
   return {
     schemaVersion: 2,
     generatedAt: now.toISOString(),
@@ -476,13 +505,15 @@ function buildWidgetToday(planner, now, timeZone, limits = {}) {
     widget: {
       events: whatsHappening.slice(0, 3),
       habits: widgetHabitSelection.slice(0, 2),
-      items: unifiedItems.slice(0, itemLimit),
+      items: paddedItems,
       eventCount: whatsHappening.length,
       habitCount: widgetHabits.length,
       itemCount: unifiedItems.length,
       eventOverflowCount: Math.max(0, whatsHappening.length - 3),
       habitOverflowCount: Math.max(0, widgetHabits.length - 2),
-      itemOverflowCount: Math.max(0, unifiedItems.length - itemLimit),
+      itemOverflowCount,
+      overflowLabel: itemOverflowCount > 0 ? "+" + itemOverflowCount + " more" : "",
+      monthCalendar: monthCalendarFor(key),
       stats
     },
     summary: {
@@ -497,25 +528,164 @@ function buildWidgetToday(planner, now, timeZone, limits = {}) {
 }
 function dueNow(nowStamp, dateKey, time, offset) { const [year, month, day] = dateKey.split("-").map(Number), [hour, minute] = String(time || "12:00").split(":").map(Number), target = Date.UTC(year, month - 1, day, hour || 0, minute || 0) + offset * 60000, delta = Math.floor((nowStamp - target) / 60000); return delta >= 0 && delta < 5; }
 function clockLabel(time) { let [hour, minute] = String(time || "12:00").split(":").map(Number); const period = hour >= 12 ? "PM" : "AM"; hour = hour % 12 || 12; return hour + ":" + String(minute || 0).padStart(2, "0") + " " + period; }
+
+// ---- Server-side planner merge (mirrors the client's mergePlannerCopies) ----
+// A "taken" record must never be clobbered by a stale device's sync push.
+function serverDateKey(d = new Date()) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function serverWeekStartKey(d = new Date()) { const s = new Date(d); s.setHours(12, 0, 0, 0); s.setDate(s.getDate() - s.getDay()); return serverDateKey(s); }
+function serverItemTarget(item) { return item.cadence === "weekly" ? (Number(item.target) || 1) : 1; }
+function serverOccurrenceKey(item, d = new Date()) {
+  if (item.cadence === "daily") return "day:" + serverDateKey(d);
+  if (item.cadence === "weekly") return item.fixedDay !== null && item.fixedDay !== undefined && serverItemTarget(item) === 1 ? "day:" + serverDateKey(d) : "week:" + serverWeekStartKey(d);
+  if (item.cadence === "monthly") return "month:" + serverDateKey(d).slice(0, 7);
+  if (item.cadence === "once") return "once:" + (item.hardDate || String(item.createdAt || "").slice(0, 10) || "undated");
+  if (item.cadence === "interval" || item.cadence === "interval_months") return "day:" + serverDateKey(d);
+  return "day:" + serverDateKey(d);
+}
+// Newer changes win, without resurrecting cleared state (README merge contract).
+function serverNewerOccurrenceValue(remote, local) {
+  if (!remote) return local;
+  if (!local) return remote;
+  return String(local.updatedAt || "") >= String(remote.updatedAt || "") ? local : remote;
+}
+function serverMergeOccurrenceStates(remote = {}, local = {}) {
+  const merged = {};
+  for (const key of new Set([...Object.keys(remote || {}), ...Object.keys(local || {})])) {
+    const a = remote?.[key] || {}, b = local?.[key] || {}, subtasks = {};
+    for (const sid of new Set([...Object.keys(a.subtasks || {}), ...Object.keys(b.subtasks || {})])) subtasks[sid] = serverNewerOccurrenceValue(a.subtasks?.[sid], b.subtasks?.[sid]);
+    merged[key] = { ...a, ...b, parent: serverNewerOccurrenceValue(a.parent, b.parent), subtasks };
+  }
+  return merged;
+}
+function serverPrepItem(entry) {
+  if (!entry || typeof entry !== "object") return entry;
+  return { completions: [], occurrenceStates: {}, subtasks: [], ...entry };
+}
+function serverMergeById(remote = [], local = []) {
+  const merged = new Map();
+  for (const entry of remote) if (entry?.id) merged.set(entry.id, entry);
+  for (const raw of local) {
+    const entry = serverPrepItem(raw);
+    if (!entry?.id) continue;
+    const prior = merged.get(entry.id);
+    if (prior && entry.completions) {
+      const occurrenceStates = serverMergeOccurrenceStates(prior.occurrenceStates, entry.occurrenceStates);
+      const combined = { ...prior, ...entry, occurrenceStates };
+      combined.completions = [...new Set([...(prior.completions || []), ...(entry.completions || [])])].filter(value => {
+        const d = new Date(value);
+        return Number.isNaN(d.getTime()) || occurrenceStates[serverOccurrenceKey(combined, d)]?.parent?.completed !== false;
+      });
+      merged.set(entry.id, combined);
+    } else merged.set(entry.id, entry);
+  }
+  return [...merged.values()];
+}
+function serverEventRecordScore(e) { return (e.userEdited ? 4 : 0) + (e.notification?.enabled ? 2 : 0) + (e.notification ? 1 : 0); }
+function serverEventSyncKey(e) {
+  if (e.source === "sports") return "sports:" + (e.sportId || e.calendarId || "") + ":" + (e.sportUid || [e.date, e.time, e.title].join("|"));
+  if (e.feedUid) return "feed:" + (e.calendarId || "") + ":" + e.feedUid;
+  return "id:" + e.id;
+}
+function serverMergeEvents(remote = [], local = []) {
+  const merged = new Map();
+  for (const event of [...remote, ...local]) {
+    if (!event?.id) continue;
+    const key = serverEventSyncKey(event), prior = merged.get(key);
+    if (!prior) { merged.set(key, event); continue; }
+    const preferred = serverEventRecordScore(event) >= serverEventRecordScore(prior) ? event : prior, other = preferred === event ? prior : event;
+    merged.set(key, { ...other, ...preferred, notification: preferred.notification || other.notification });
+  }
+  return [...merged.values()];
+}
+function serverMergePlanners(existing, incoming) {
+  const deletedItemIds = [...new Set([...(existing.deletedItemIds || []), ...(incoming.deletedItemIds || [])])];
+  const deletedEventIds = [...new Set([...(existing.deletedEventIds || []), ...(incoming.deletedEventIds || [])])];
+  return {
+    ...existing, ...incoming,
+    items: serverMergeById(existing.items || [], incoming.items || []).filter(x => x && x.id && !deletedItemIds.includes(x.id)),
+    events: serverMergeEvents(existing.events || [], incoming.events || []).filter(x => x && x.id && !deletedEventIds.includes(x.id)),
+    calendars: serverMergeById(existing.calendars || [], incoming.calendars || []),
+    feeds: serverMergeById(existing.feeds || [], incoming.feeds || []),
+    sports: { ...(existing.sports || {}), ...(incoming.sports || {}) },
+    dayReminders: { ...(existing.dayReminders || {}), ...(incoming.dayReminders || {}) },
+    dismissedAllDayOccurrences: [...new Set([...(existing.dismissedAllDayOccurrences || []), ...(incoming.dismissedAllDayOccurrences || [])])],
+    deletedFeedUids: [...new Set([...(existing.deletedFeedUids || []), ...(incoming.deletedFeedUids || [])])],
+    deletedItemIds, deletedEventIds,
+    updatedAt: [existing.updatedAt, incoming.updatedAt].filter(Boolean).sort().at(-1) || new Date().toISOString()
+  };
+}
+
 function collectJobs(planner, now, timeZone) {
-  const parts = zoneParts(now, timeZone), today = keyFrom(parts), tomorrow = plusLocalDays(today, 1), nowStamp = fakeStamp(parts), dayReminders = planner.dayReminders?.[today] || { items: [], events: [] }, jobs = [];
-  for (const item of planner.items || []) { if (periodComplete(item, today, timeZone) || !itemOccurs(item, today)) continue; const bulk = dayReminders.items?.includes(item.id), enabled = !!item.notification?.enabled; if (!bulk && !enabled) continue; const time = item.notification?.time || item.fixedTime || "12:00", medication = item.kind === "medication", offsets = medication && enabled ? [-60, 0, 30, 60, 120, 180, 240, 300, 360, 420, 480] : [0]; for (const offset of offsets) if (dueNow(nowStamp, today, time, offset)) { const bucket = offset < 0 ? "early" : offset === 0 ? "due" : "overdue-" + offset, title = medication ? offset < 0 ? "Medication due in one hour" : offset === 0 ? "Medication due now" : "Medication overdue" : "OpalDay reminder"; jobs.push({ id: "item:" + item.id + ":" + today + ":" + bucket, title, body: item.title, tag: "opalday-" + item.id + "-" + bucket, url: "./" }); } }
+  const parts = zoneParts(now, timeZone), today = keyFrom(parts), tomorrow = plusLocalDays(today, 1), yesterday = plusLocalDays(today, -1), nowStamp = fakeStamp(parts), dayReminders = planner.dayReminders?.[today] || { items: [], events: [] }, jobs = [];
+  for (const item of planner.items || []) {
+    const time = item.notification?.time || item.fixedTime || "12:00", medication = item.kind === "medication", enabled = !!item.notification?.enabled,
+      offsets = medication && enabled ? [-60, 0, 30, 60, 120, 180, 240, 300, 360, 420, 480] : [0];
+    // Medications are evaluated against both today and yesterday so the overdue
+    // escalation tail (up to +480 min) survives the midnight date roll. Job ids
+    // anchor to the occurrence's due date, keeping notification_log dedupe stable.
+    for (const dateKey of medication ? [today, yesterday] : [today]) {
+      if (periodComplete(item, dateKey, timeZone) || !itemOccurs(item, dateKey)) continue;
+      const bulk = (planner.dayReminders?.[dateKey]?.items || []).includes(item.id);
+      if (!bulk && !enabled) continue;
+      for (const offset of offsets) if (dueNow(nowStamp, dateKey, time, offset)) {
+        const bucket = offset < 0 ? "early" : offset === 0 ? "due" : "overdue-" + offset,
+          title = medication ? (offset < 0 ? "Medication due in one hour" : offset === 0 ? "Medication due now" : "Medication overdue") : "OpalDay reminder";
+        jobs.push({ id: "item:" + item.id + ":" + dateKey + ":" + bucket, title, body: item.title, tag: "opalday-" + item.id + "-" + bucket, url: "./" });
+      }
+    }
+  }
   for (const event of planner.events || []) { const individual=!!event.notification?.enabled,bulk=dayReminders.events?.includes(event.id);if(!individual&&!bulk)continue;const candidates=bulk&&!individual?[today]:[today,tomorrow];for(const occurrence of candidates){const occurrenceStart=eventOccurrenceStart(event,occurrence);if(!occurrenceStart)continue;if(individual&&event.notification?.scope==="once"&&occurrence!==event.notification?.occurrenceDate)continue;if(individual&&event.notification?.days!=="daily"&&occurrence!==occurrenceStart)continue;const legacy=individual&&!event.notification?.time,reminderTime=individual?(event.notification?.time||event.time||"12:00"):(event.time||"12:00"),lead=legacy?Number(event.notification?.leadMinutes||0):0;if(dueNow(nowStamp,occurrence,reminderTime,-lead)){const body=legacy?(lead===1440?"Tomorrow":lead===60?"In one hour":lead===15?"In 15 minutes":event.time?"Starting now":"All day"):(event.time?"Starts at "+clockLabel(event.time):"Reminder for today");jobs.push({id:"event:"+event.id+":"+occurrence+":"+(legacy?"lead-"+lead:"time-"+reminderTime),title:legacy&&lead?"Upcoming: "+event.title:event.title,body,tag:"opalday-event-"+event.id+"-"+occurrence,url:"./"})}}}
   for (const custom of dayReminders.custom || []) if (dueNow(nowStamp, today, custom.time || "12:00", 0)) jobs.push({ id: "custom:" + custom.id + ":" + today, title: custom.title, body: custom.time ? "Reminder for today" : "All day", tag: "opalday-custom-" + custom.id + "-" + today, url: "./" });
   return jobs;
 }
 async function runNotifications(env) {
+  // Heartbeat: record every cron run so the app can tell "scheduler stale"
+  // apart from "nothing due". last_cron_run is only written on a clean pass.
+  const runStart = new Date().toISOString();
+  await env.DB.prepare("CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT)").run();
+  const setMeta = (key, value) => env.DB.prepare("INSERT INTO meta(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(key, value).run();
+  await setMeta("last_cron_run_start", runStart);
+  let jobsSent = 0, jobsEvaluated = 0;
   const { results: subscriptions = [] } = await env.DB.prepare("SELECT endpoint, sync_code, p256dh, auth, timezone FROM push_subscriptions").all(), groups = new Map();
   for (const row of subscriptions) { const key = row.sync_code + "|" + row.timezone; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(row); }
-  for (const [groupKey, rows] of groups) { const [code, timeZone] = groupKey.split("|"), stored = await env.DB.prepare("SELECT data FROM planner_sync WHERE sync_code = ?").bind(code).first(); if (!stored) continue; let planner; try { planner = JSON.parse(stored.data); } catch { continue; } for (const job of collectJobs(planner, new Date(), timeZone || "America/New_York")) { const logId = code + "|" + (timeZone || "America/New_York") + "|" + job.id, prior = await env.DB.prepare("SELECT id FROM notification_log WHERE id = ?").bind(logId).first(); if (prior) continue; let delivered = false; for (const row of rows) { try { const response = await sendPush(row, job); if (response.ok) delivered = true; else if (response.status === 404 || response.status === 410) await env.DB.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").bind(row.endpoint).run(); } catch {} } if (delivered) await env.DB.prepare("INSERT OR IGNORE INTO notification_log (id, sent_at) VALUES (?, CURRENT_TIMESTAMP)").bind(logId).run(); } }
+  for (const [groupKey, rows] of groups) {
+    const [code, timeZone] = groupKey.split("|"), stored = await env.DB.prepare("SELECT data FROM planner_sync WHERE sync_code = ?").bind(code).first();
+    if (!stored) continue;
+    let planner; try { planner = JSON.parse(stored.data); } catch { continue; }
+    // Normal pass plus catch-up passes: a skipped or failed cron run must not
+    // silently lose reminders. Job ids are deterministic per (item, due date,
+    // bucket), so re-evaluating is safe: notification_log dedupes delivery.
+    const nowMs = Date.now(), seen = new Set(), jobs = [];
+    for (const backMinutes of [0, 5, 10]) for (const job of collectJobs(planner, new Date(nowMs - backMinutes * 60000), timeZone || "America/New_York")) {
+      if (seen.has(job.id)) continue;
+      seen.add(job.id); jobs.push(job);
+    }
+    jobsEvaluated += jobs.length;
+    for (const job of jobs) { const logId = code + "|" + (timeZone || "America/New_York") + "|" + job.id, prior = await env.DB.prepare("SELECT id FROM notification_log WHERE id = ?").bind(logId).first(); if (prior) continue; let delivered = false; for (const row of rows) { try { const response = await sendPush(row, job); if (response.ok) delivered = true; else if (response.status === 404 || response.status === 410) await env.DB.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").bind(row.endpoint).run(); } catch {} } if (delivered) { await env.DB.prepare("INSERT OR IGNORE INTO notification_log (id, sent_at) VALUES (?, CURRENT_TIMESTAMP)").bind(logId).run(); jobsSent++; } }
+  }
   await env.DB.prepare("DELETE FROM notification_log WHERE sent_at < datetime('now', '-45 days')").run();
+  await setMeta("last_cron_run", new Date().toISOString());
+  await setMeta("last_cron_jobs_evaluated", String(jobsEvaluated));
+  await setMeta("last_cron_jobs_sent", String(jobsSent));
 }
 
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: HEADERS });
     const url = new URL(request.url);
-    if (url.pathname === "/health") return json({ ok: true, app: "OpalDay", version: "1.5.6", notifications: true, reminderTimes: "individual-first", recurringEvents: "advanced", habitOccurrences: true, widgetToday: true, widgetSchema: 2, widgetSlots: "display-safe", widgetUnifiedItems: true });
+    if (url.pathname === "/health") {
+      let lastCronRun = null, lastCronRunStart = null, lastCronJobsSent = null, lastCronJobsEvaluated = null;
+      try {
+        const { results } = await env.DB.prepare("SELECT key, value FROM meta WHERE key IN ('last_cron_run','last_cron_run_start','last_cron_jobs_sent','last_cron_jobs_evaluated')").all();
+        for (const row of results || []) {
+          if (row.key === "last_cron_run") lastCronRun = row.value;
+          else if (row.key === "last_cron_run_start") lastCronRunStart = row.value;
+          else if (row.key === "last_cron_jobs_sent") lastCronJobsSent = row.value;
+          else if (row.key === "last_cron_jobs_evaluated") lastCronJobsEvaluated = row.value;
+        }
+      } catch {}
+      return json({ ok: true, app: "OpalDay", version: "1.5.12", notifications: true, reminderTimes: "individual-first", recurringEvents: "advanced", habitOccurrences: true, widgetToday: true, widgetSchema: 2, widgetSlots: "display-safe", widgetUnifiedItems: true, lastCronRun, lastCronRunStart, lastCronJobsSent, lastCronJobsEvaluated });
+    }
     if (url.pathname === "/push/vapid-key" && request.method === "GET") return json({ publicKey: VAPID.publicKey });
     if (url.pathname === "/push/subscribe" && request.method === "POST") {
       const payload = await request.json(), code = String(payload.code || "").toUpperCase(), subscription = payload.subscription || {}, keys = subscription.keys || {};
@@ -564,7 +734,15 @@ export default {
       const payload = await request.json();
       const code = String(payload.code || "").toUpperCase();
       if (!validCode(code) || !payload.data || typeof payload.data !== "object") return json({ error: "A sync code and planner data are required." }, 400);
-      const data = JSON.stringify(payload.data);
+      const incoming = payload.data;
+      // Never blindly overwrite: merge the incoming planner with the stored
+      // one so a stale device's push can't clobber "taken" completions.
+      let merged = incoming;
+      try {
+        const existing = await env.DB.prepare("SELECT data FROM planner_sync WHERE sync_code = ?").bind(code).first();
+        if (existing && existing.data) merged = serverMergePlanners(JSON.parse(existing.data), incoming);
+      } catch { merged = incoming; }
+      const data = JSON.stringify(merged);
       if (data.length > 750000) return json({ error: "Planner data is too large." }, 413);
       await env.DB.prepare(`
         INSERT INTO planner_sync (sync_code, data, version, updated_at)

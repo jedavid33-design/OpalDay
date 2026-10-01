@@ -25,13 +25,23 @@
       localStorage.setItem(PUSH_KEY,"true");return true
     }catch{toast("Couldn’t connect notifications yet");return false}
   }
-  function updateSettings(){
+  async function updateSettings(){
     const status=$("#notificationSettingsStatus"),button=$("#enableNotificationsSettings");if(!status||!button)return;
     const supported="serviceWorker"in navigator&&"PushManager"in window&&"Notification"in window,permission=supported?Notification.permission:"unsupported",connected=localStorage.getItem(PUSH_KEY)==="true";
     button.disabled=false;
+    let freshness="";
+    if(supported&&permission==="granted"&&connected&&workerUrl()){
+      try{
+        const response=await fetch(workerUrl()+"/health"),health=response.ok?await response.json():null;
+        if(health&&health.lastCronRun){
+          const ageMin=(Date.now()-Date.parse(health.lastCronRun))/60000;
+          if(!(ageMin>=0)||ageMin>20)freshness=" — ⚠ reminder scheduler hasn't checked in recently";
+        }else freshness=" — scheduler status unknown";
+      }catch{/* network failure: leave the status text as-is */}
+    }
     if(!supported){status.textContent="Install OpalDay on your Home Screen first";button.textContent="Notifications unavailable";button.disabled=true}
     else if(permission==="denied"){status.textContent="Blocked in iPhone or iPad settings";button.textContent="Permission blocked";button.disabled=true}
-    else if(permission==="granted"&&connected){status.textContent="Ready — individual reminders remain opt-in";button.textContent="Notifications enabled";button.disabled=true}
+    else if(permission==="granted"&&connected){status.textContent="Ready — individual reminders remain opt-in"+freshness;button.textContent="Notifications enabled";button.disabled=true}
     else if(permission==="granted"){status.textContent="Permission granted — finish connecting";button.textContent="Finish notification setup"}
     else{status.textContent="Off until you enable them";button.textContent="Enable notifications"}
   }
